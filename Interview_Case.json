@@ -319,7 +319,7 @@
       "name": "Gerar Resposta (Gemini)",
       "credentials": {
         "googlePalmApi": {
-          "id": "k786QSr6PtGJykQF",
+          "id": "XXXX",
           "name": "Google Gemini(PaLM) Api account"
         }
       }
