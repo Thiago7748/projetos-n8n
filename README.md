@@ -1,6 +1,6 @@
 # Portfólio de Automações e Integrações (n8n)
 
-Este repositório contém as exportações JSON dos meus principais workflows construídos no **n8n**. O objetivo é demonstrar minha capacidade de arquitetar soluções de integração, automatizar processos e conectar APIs com o uso de IA.
+Este repositório contém as exportações JSON dos meus principais workflows construídos no **n8n**.
 
 Cada arquivo `.json` presente aqui pode ser importado diretamente para qualquer instância do n8n para visualização do fluxo. Abaixo, detalho a arquitetura e o propósito de cada um deles.
 
