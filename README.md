@@ -6,7 +6,7 @@ Cada arquivo `.json` presente aqui pode ser importado diretamente para qualquer 
 
 ---
 
-## 1. Suporte Automatizado ao Cliente (Interview Case)
+## 1. Suporte Automatizado ao Cliente
 ![Workflow Interview Case](./assets/interview-case.png)
 **Arquivo:** `Interview_Case.json`
 
