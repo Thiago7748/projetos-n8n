@@ -1,29 +1,68 @@
-# Orquestrações e APIs (n8n Workflows) ⚙️
+# Portfólio de Automações e Integrações (n8n)
 
-Neste diretório estão salvos os arquivos `.json` contendo os fluxos exportados do n8n. Estes arquivos podem ser importados diretamente em qualquer instância do n8n para replicar a infraestrutura construída.
+Este repositório contém as exportações JSON dos meus principais workflows construídos no **n8n**. O objetivo é demonstrar minha capacidade de arquitetar soluções de integração, automatizar processos e conectar APIs com o uso de IA.
 
-Abaixo está a documentação lógica de cada um dos projetos:
+Cada arquivo `.json` presente aqui pode ser importado diretamente para qualquer instância do n8n para visualização do fluxo. Abaixo, detalho a arquitetura e o propósito de cada um deles.
 
-## 1. Backend OrçaAqui MVP (`Backend_OrcaAqui_MVP.json`)
-* **Descrição:** Lógica backend (API Serverless) do projeto OrçaAqui para gestão de orçamentos e análise B2B.
-* **Lógica / Fluxo:**
-  1. **GET Pedidos:** Um webhook que escuta requisições GET (`/orcaaqui-get-pedidos`), acessa uma base de dados no Google Sheets (aba `adiciona_pedido`) e retorna todos os pedidos ativos para o Front-End.
-  2. **POST Proposta:** Um webhook que escuta propostas enviadas por fornecedores (`/orcaaqui-post-proposta`) e salva os dados na aba `analisa_resposta_pedido` do Google Sheets.
-  3. **Análise IA (Matchmaking):** Webhook GET que recebe o ID de um pedido e busca todas as propostas enviadas para ele. Em seguida, usando um nó de Código, verifica se há propostas (se não houver, retorna um aviso elegante). Se houver, a lista é enviada para a API do Google Gemini 2.5 Flash, que atua como Analista de Compras e resume em até 3 parágrafos a melhor proposta.
+---
 
-## 2. Interview Case (`Interview_Case.json`)
-* **Descrição:** Sistema inteligente e automatizado para atendimento ao cliente (Customer Service) via E-mail.
-* **Lógica / Fluxo:**
-  1. **Gatilho (Trigger):** Monitora a caixa de entrada do Gmail em busca de e-mails recebidos.
-  2. **Registro:** Guarda um log completo do contato recebido em uma planilha central ("Central de Atendimento") no Google Sheets, incluindo remetente, mensagem original e horário.
-  3. **Roteamento Inteligente (Switch):** Lê a mensagem usando expressões regulares (RegEx) para identificar a intenção do cliente: *Cancelamento*, *Status/Andamento*, ou *Pedido Parado*.
-  4. **Templates e Dados:** Com base na intenção, seleciona um template de mensagem pré-definido (em espanhol) e simula uma consulta a sistemas externos de e-commerce e CRM (Mocks Shopify e CRM).
-  5. **Queda para IA (Fallback):** Se a mensagem não bater com as intenções mapeadas, repassa o caso ao Google Gemini 2.5 Flash, instruído a atuar como assistente de suporte, para gerar uma resposta empática prometendo revisão.
-  6. **Envio:** Compila a resposta final, adiciona dados de rastreio (se aplicável), e salva como um Rascunho (Draft) direto no Gmail para aprovação humana final.
+## 1. Suporte Automatizado ao Cliente (Interview Case)
+![Workflow Interview Case](./assets/interview-case.png)
+**Arquivo:** `Interview_Case.json`
 
-## 3. case projeto facul (`case_projeto_facul.json`)
-* **Descrição:** Backend simples e direto servindo como API de consulta para um projeto universitário (Biblioteca Itupeva).
-* **Lógica / Fluxo:**
-  Este fluxo atua como duas rotas de API estáticas.
-  1. **Rota de Livros:** Um Webhook (`GET /livros`) que, quando acionado, extrai todos os dados da aba "Livros_Destaque" do banco de dados no Google Sheets e devolve em formato JSON.
-  2. **Rota de Avisos:** Outro Webhook (`GET /avisos`) que puxa e retorna as notificações da aba "Avisos" do mesmo arquivo.
+Um case técnico focado em otimização de atendimento ao cliente via e-mail, utilizando inteligência artificial para ler, classificar e redigir respostas baseadas em dados de plataformas externas (Mocks de Shopify e CRM).
+
+**Arquitetura do Fluxo:**
+1. **Trigger:** Monitora a caixa de entrada do Gmail buscando por e-mails com a tag "Pendente".
+2. **Registro:** Faz o backup do e-mail recebido em uma planilha do Google Sheets.
+3. **Roteamento:** Um nó `Switch` atua como roteador principal, analisando o conteúdo/assunto para direcionar o fluxo para a esteira correta de atendimento (Cancelamento, Andamento, Parado ou Fallback).
+4. **Respostas Templates:** Para cenários conhecidos, injeta respostas padronizadas em templates, mantendo o tom de voz da marca.
+5. **Enriquecimento de Dados:** Faz consultas a APIs simuladas (Shopify para status de pedidos e CRM para histórico do cliente).
+6. **IA Generativa:** Emprega o Google Gemini para analisar os dados enriquecidos e gerar uma resposta humanizada e contextualizada.
+7. **Ação Final:** Cria um rascunho (draft) da resposta no Gmail, pronto para ser revisado ou disparado por um atendente humano.
+
+**Destaques de Engenharia:**
+- Uso de nós condicionais e lógicos (`Switch`, `If`) para garantir que apenas os fluxos necessários sejam executados, economizando recursos.
+- Tratamento de Mocks de API para simular um ambiente de produção real.
+- Delegação de tarefas cognitivas (entendimento de contexto) para LLMs (Large Language Models).
+
+---
+
+## 2. Backend MVP (OrçaAqui)
+![Workflow Backend MVP](./assets/orcaaqui.png)
+**Arquivo:** `Backend_OrcaAqui_MVP.json`
+
+Desenvolvido para atuar como o backend completo de uma aplicação SaaS (Single Page Application hospedada na Vercel). O n8n expõe Webhooks que o Front-End consome via fetch nativo, eliminando a necessidade de um servidor Node.js intermediário.
+
+**Arquitetura do Fluxo:**
+1. **Webhooks GET/POST:** Atuam como endpoints de uma API RESTful.
+   - `/webhook/orcaaqui-get-pedidos`: Retorna a lista de pedidos.
+   - `/webhook/orcaaqui-post-proposta`: Recebe novas propostas e salva no banco de dados.
+   - `/webhook/orcaaqui-analise-ia`: Endpoint avançado para análise inteligente.
+2. **Banco de Dados (Google Sheets):** Leitura e escrita otimizada na planilha que atua como o banco relacional do MVP.
+3. **IA Analítica (Gemini):**
+   - Recebe um `id_pedido`.
+   - Busca no banco todas as propostas relacionadas a esse ID.
+   - Envia o contexto em lote para o Google Gemini via requisição HTTP (API REST nativa).
+   - A IA atua como um "consultor financeiro", comparando as propostas, apontando o melhor custo-benefício e formatando a saída de volta para o frontend.
+4. **Tratamento de Rate Limit:** O frontend consome este fluxo já esperando possíveis respostas HTTP `429 Too Many Requests`, lidando de forma graciosa com os limites da IA.
+
+**Destaques de Engenharia:**
+- Construção de "API-less Backend": O n8n assume total responsabilidade pelas regras de negócios e rotas.
+- Otimização de prompts para que a IA processe matrizes de dados complexos (múltiplas propostas e valores) e retorne insights diretos.
+
+---
+
+## 3. Integração Simples de Dados (Case de Faculdade)
+![Workflow Case Faculdade](./assets/facul-case.png)
+**Arquivo:** `case_projeto_facul.json`
+
+Um projeto acadêmico demonstrando os fundamentos de extração e disponibilização de dados utilizando Webhooks como micro-serviços.
+
+**Arquitetura do Fluxo:**
+1. **Endpoint 1 (`/livros`):** Acionado via GET, busca dados em uma tabela "Livros_Destaque" e retorna o payload limpo para o front-end consumir.
+2. **Endpoint 2 (`/avisos`):** Acionado via GET, busca dados em uma tabela "Avisos" e retorna a lista de recados.
+
+**Destaques de Engenharia:**
+- Demonstra entendimento da estrutura `Request -> Process -> Response`.
+- Uso eficiente de Webhooks para servir conteúdo dinâmico (Headless CMS com Google Sheets).
