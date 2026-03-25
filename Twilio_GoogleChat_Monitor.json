@@ -1,0 +1,219 @@
+{
+  "name": "Monitoramento de Status - Twilio para Google Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "22ff5d56-fb9a-4c28-98e6-1eb22442cfad",
+      "name": "Agendador (Cron)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://mock.twilio.api/v1/workers",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer mock-token-twilio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e0b8e9b6-8f35-430c-8430-8c9e5e7834bc",
+      "name": "GET Twilio Workers (Mock)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dados Mockados simulando a API da Twilio\nconst workers = [\n  { friendly_name: \"Adriano Silva\", activity_name: \"Task\", date_status_changed: new Date().toISOString() },\n  { friendly_name: \"Cicera Felipe\", activity_name: \"Ativo\", date_status_changed: new Date().toISOString() },\n  { friendly_name: \"João Offline\", activity_name: \"Offline\", date_status_changed: new Date().toISOString() }\n];\n\n// 1. Filtra quem está offline\nconst ativos = workers.filter(w => w.activity_name.toLowerCase() !== 'offline');\n\n// 2. Monta a visualização para o Google Chat\nlet widgets = ativos.map(a => ({\n   textParagraph: { text: `<b>${a.friendly_name}</b> - ${a.activity_name}` }\n}));\n\n// Monta o texto de fallback\nlet fallbackText = \"```\\nAgente | Status\\n\";\nativos.forEach(a => {\n   fallbackText += `${a.friendly_name} | ${a.activity_name}\\n`;\n});\nfallbackText += \"```\";\n\n// 3. Estrutura o Payload (Cards V2)\nconst payload = {\n  cardsV2: [{\n    cardId: \"status-agentes\",\n    card: {\n      header: { title: \"Status dos Agentes\", subtitle: \"Atualizado agora\" },\n      sections: [{ widgets }]\n    }\n  }]\n};\n\nreturn [{ json: { has_changes: ativos.length > 0, payload, fallbackText } }];"
+      },
+      "id": "5170f3f2-1a4a-4eeb-b6df-dc61e1f7d4c9",
+      "name": "Filtrar e Tratar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "operation": "equal",
+              "value1": "={{ $json.has_changes }}",
+              "value2": true
+            }
+          ]
+        },
+        "operator": "AND"
+      },
+      "id": "3d2b1f81-5c32-4d2a-8c9e-5e7834bc1a4a",
+      "name": "If (Teve mudança hoje?)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://chat.googleapis.com/v1/spaces/mock/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "cardsV2",
+              "value": "={{ $json.payload.cardsV2 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bcf5311e-8e4a-4d2c-806b-db62f8319e79",
+      "name": "POST Google Chat (Cards V2)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [840, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+      "name": "No Operation, do nothing",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [840, 400],
+      "notes": "Nenhuma mudança detectada hoje."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "operation": "equal",
+              "value1": "={{ $json.error !== undefined || $response.statusCode !== 200 }}",
+              "value2": true
+            }
+          ]
+        },
+        "operator": "AND"
+      },
+      "id": "7f8e9d0c-1b2a-3c4d-5e6f-7a8b9c0d1e2f",
+      "name": "If (Falha no Card V2?)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1060, 200],
+      "notes": "Verifica se ocorreu erro (Rate Limit, Bad Request)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://chat.googleapis.com/v1/spaces/mock/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $('Filtrar e Tratar Dados').item.json.fallbackText }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8e9d0c1b-2a3c-4d5e-6f7a-8b9c0d1e2f3a",
+      "name": "POST Google Chat (Fallback Text)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1280, 100],
+      "notes": "Envia payload em texto simples"
+    }
+  ],
+  "connections": {
+    "Agendador (Cron)": {
+      "main": [
+        [
+          {
+            "node": "GET Twilio Workers (Mock)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Twilio Workers (Mock)": {
+      "main": [
+        [
+          {
+            "node": "Filtrar e Tratar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar e Tratar Dados": {
+      "main": [
+        [
+          {
+            "node": "If (Teve mudança hoje?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (Teve mudança hoje?)": {
+      "main": [
+        [
+          {
+            "node": "POST Google Chat (Cards V2)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Google Chat (Cards V2)": {
+      "main": [
+        [
+          {
+            "node": "If (Falha no Card V2?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (Falha no Card V2?)": {
+      "main": [
+        [
+          {
+            "node": "POST Google Chat (Fallback Text)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

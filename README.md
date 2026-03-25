@@ -28,7 +28,27 @@ Um case técnico focado em otimização de atendimento ao cliente via e-mail, ut
 
 ---
 
-## 2. Backend MVP (OrçaAqui)
+## 2. Monitoramento de Status de Agentes (Twilio ➜ Google Chat)
+![Workflow Twilio Monitor](./assets/monitor-twilio.png)
+**Arquivo:** `Twilio_GoogleChat_Monitor.json`
+
+Um fluxo automatizado de ETL e monitoramento em tempo real. O n8n se conecta à API da Twilio para extrair os status dos agentes de atendimento, processa os dados com regras de negócios avançadas e dispara alertas visuais no Google Chat.
+
+**Arquitetura do Fluxo:**
+1. **Agendador (Cron):** Dispara a rotina em intervalos definidos (ex: a cada 30 minutos).
+2. **Extração de Dados:** Realiza um GET autenticado na API da Twilio TaskRouter (simulado via Mocks).
+3. **Processamento (Code Node):** Filtra agentes desconectados, consolida mudanças recentes de status e estrutura o payload utilizando JavaScript.
+4. **Controle de Fluxo (`If`):** Valida se houveram alterações antes de prosseguir, economizando recursos computacionais.
+5. **Ação Principal:** Dispara um Webhook para o Google Chat utilizando uma interface rica (Cards V2).
+6. **Resiliência (Fallback):** Uma segunda trava lógica verifica se a API do Google Chat retornou erro (ex: falha na renderização do Card). Em caso positivo, o fluxo regride graciosamente para enviar um alerta em texto puro.
+
+**Destaques de Engenharia:**
+- Tratamento de exceções nativo do n8n atrelado a nós de roteamento condicional.
+- Implementação de um padrão de "Fallback" garantindo a entrega da mensagem independente da complexidade visual suportada pelo canal de destino.
+
+---
+
+## 3. Backend MVP (OrçaAqui)
 ![Workflow Backend MVP](./assets/orcaaqui.png)
 **Arquivo:** `Backend_OrcaAqui_MVP.json`
 
@@ -53,7 +73,7 @@ Desenvolvido para atuar como o backend completo de uma aplicação SaaS (Single 
 
 ---
 
-## 3. Integração Simples de Dados (Case de Faculdade)
+## 4. Integração Simples de Dados (Case de Faculdade)
 ![Workflow Case Faculdade](./assets/facul-case.png)
 **Arquivo:** `case_projeto_facul.json`
 
