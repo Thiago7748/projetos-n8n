@@ -90,7 +90,7 @@ Um projeto acadêmico demonstrando os fundamentos de extração e disponibiliza�
 ---
 
 ## 5. Processador de Dados WFM (ETL com Pandas)
-**Pasta:** `wfm-data-processor/`
+**Pasta:** `subprojetos-automacao-com-linguagem-programacao/`
 
 Um script Python desenvolvido para modernizar e escalar as regras de negócio de **Workforce Management**. Ele converte cálculos complexos de planilhas eletrônicas (apuração de ponto, banco de horas e pausas do sistema Twilio) para um algoritmo performático utilizando a biblioteca **Pandas**. Demonstra habilidade sólida em Engenharia de Dados para operações de backoffice.
 
