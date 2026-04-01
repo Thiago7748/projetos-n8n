@@ -7,8 +7,9 @@ Cada arquivo `.json` presente aqui pode ser importado diretamente para qualquer 
 ---
 
 ## 1. Suporte Automatizado ao Cliente
-![Workflow Interview Case](./assets/interview-case.png)
+![draft case](https://github.com/user-attachments/assets/98bfc08e-9ef8-4314-b59e-635dfe81c8d4)
 **Arquivo:** `Interview_Case.json`
+
 
 Um case técnico focado em otimização de atendimento ao cliente via e-mail, utilizando inteligência artificial para ler, classificar e redigir respostas baseadas em dados de plataformas externas (Mocks de Shopify e CRM).
 
