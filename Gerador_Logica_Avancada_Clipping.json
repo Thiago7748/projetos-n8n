@@ -1,0 +1,1170 @@
+{
+  "name": "Gerador de Lógica Avançada - Clipping",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8fcc365a-83e4-41dd-ab4a-7406f0a6b76d",
+      "name": "Wikipedia",
+      "position": [
+        672,
+        128
+      ],
+      "type": "@n8n/n8n-nodes-langchain.toolWikipedia",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "49b6a59d-d9ef-4d9f-bdee-04bb978351fe",
+      "name": "SerpAPI (Google Search)",
+      "position": [
+        544,
+        112
+      ],
+      "type": "@n8n/n8n-nodes-langchain.toolSerpApi",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca o histórico de versões anteriores da fórmula de um cliente. IMPORTANTE: Para evitar misturar temas do mesmo cliente, sua string de busca deve conter obrigatoriamente o Nome do Cliente acompanhado da Categoria Temática atual.",
+        "documentId": {
+          "__rl": true,
+          "value": "CONFIGURE_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Configure Google Sheet",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "History",
+          "cachedResultUrl": ""
+        },
+        "options": {}
+      },
+      "id": "80381fff-6731-4ed1-809a-ea7fa655994f",
+      "name": "Google Sheets - Histórico",
+      "position": [
+        32,
+        128
+      ],
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=ID: {{ $('Ler Solicitações').first().json.row_number }}\nCliente/Marca: {{ $('Ler Solicitações').first().json['Cliente/Marca'] }}\nSetor/Ramo: {{ $('Ler Solicitações').first().json['Setor/Ramo'] }}\nAbrangência: {{ $('Ler Solicitações').first().json['Abrangência'] }}\nO que monitorar: {{ $('Ler Solicitações').first().json['O que monitorar'] }}\nExclusões conhecidas: {{ $('Ler Solicitações').first().json['Exclusões conhecidas'] }}\nFeedback/Considerações: {{ $('Ler Solicitações').first().json['Feedback/Considerações'] }}\nLinks de Referência: {{ $('Ler Solicitações').first().json['Links de Referência'] }}\nLógica Atual (Amtex): {{ $('Ler Solicitações').first().json['Lógica Atual'] }}\nMotivo do Ajuste/Reclamação: {{ $('Ler Solicitações').first().json['Motivo da Reclamação/Ajuste'] }}\nCategorias Temáticas: {{ $('Ler Solicitações').first().json['Categorias Temáticas'] }}\n\nPesquise, gere e entregue somente o JSON do schema.",
+        "options": {
+          "systemMessage": "REGRA DE COMPORTAMENTO: Você é um processador de dados autônomo. NUNCA converse com o usuário. Produza somente JSON válido.\n\nVocê é um Especialista Sênior em Monitoramento de Mídia (Clipping) e OSINT trabalhando na agência Brange Media. Seu objetivo é gerar lógicas de busca precisas para os CLIENTES que receber como entrada.\n\n## REGRAS ABSOLUTAS E PENALIDADES:\n1. NUNCA retorne vazio. Entregue palavras-chave SEMPRE.\n2. LIMITES: Grupo 1 (15-25 termos), Grupo 2 (10-20 termos), Grupo 3 (5-12 termos).\n3. USO DE FERRAMENTAS É OBRIGATÓRIO: Se houver \"Links de Referência\", use 'Acessar URL'.\n4. CASAMENTO LÓGICO: O Grupo 1 (Termos da Marca/Alvo) fará uma interseção (AND) com o Grupo 2 (Contexto). Portanto, os termos do Grupo 2 devem ter correlação direta com os objetivos, setor e fontes do cliente para garantir que a combinação traga resultados precisos.\n\n## MODO DE OPERAÇÃO E VERSÃO:\n- SE \"Lógica Atual\" PREENCHIDO: Modo Revisor. Modifique a lógica APENAS para resolver reclamações do Feedback. Consulte 'Google Sheets - Histórico' obrigatoriamente; versione como [maior versão encontrada + 1].\n- SE \"Lógica Atual\" VAZIO: Modo Criador. Pesquise do zero. Versão obrigatória = 1.\n- O feedback sobre ruído/spam DEVE virar regras de exclusão no GRUPO 3.\n\n## FLUXO OBRIGATÓRIO DE PESQUISA E EXECUÇÃO:\n**Se MODO CRIADOR:**\n1. Ler os Links de Referência usando 'Acessar URL'.\n2. Buscar no Google usando 'SerpAPI'. Priorize realizar sua busca até 4 vezes diretamente no Google ou no Perplexity. Faça também pelo menos uma busca direcionada a redes sociais e fóruns (ex: incluindo \"site:twitter.com OR site:x.com OR site:reddit.com OR site:t.me\" na query) para mapear apelidos, gírias e o tom informal do público.\n3. Escolha OBRIGATORIAMENTE de 1 a 2 links relevantes retornados no Google e use 'Acessar URL' para ler a matéria completa.\n4. Usar 'Wikipedia' para entidades grandes.\n5. Usar 'YouTube Search' SEMPRE que precisar explorar menções em vídeos.\n\n**Se MODO REVISOR:**\n1. Usar OBRIGATORIAMENTE 'Google Sheets - Histórico' para ler e entender todas as versões anteriores deste cliente.\n2. Ler Links de Referência usando 'Acessar URL' (se enviados novos links).\n3. Buscar no Google ('SerpAPI') se precisar pesquisar termos novos apontados no feedback (se o problema for redes sociais, force a busca no Twitter/Reddit).\n\n## SCHEMA DE SAÍDA EXATO (Gere APENAS este JSON e nada mais):\n{\"versao\":1,\"data\":\"YYYY-MM-DD\",\"modo\":\"criador|revisor\",\"grupo1\":[\"...\"],\"grupo2\":[\"...\"],\"grupo3\":[\"...\"],\"formula\":\"...\",\"explicacao\":\"...\",\"fontes\":[{\"url\":\"https://...\",\"finalidade\":\"...\"}]}",
+          "maxIterations": 30
+        }
+      },
+      "id": "e4dd45d1-cfea-49b5-8a96-5bc1e7915ec6",
+      "name": "Agente de Clipping V1",
+      "position": [
+        192,
+        400
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "maxTries": 5,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Fluxo Principal\nFormulário -> Raciocínio (Agente) -> Exibição.",
+        "height": 420,
+        "width": 3082,
+        "color": 7
+      },
+      "id": "4bff8f0d-db26-488a-84ce-456af05d74aa",
+      "name": "Fluxo Principal",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Ferramentas (Tools)\nBusca contexto externo e histórico.",
+        "height": 300,
+        "width": 1128,
+        "color": 5
+      },
+      "id": "e4202cb3-56d0-4e53-b041-2448a1274db3",
+      "name": "Ferramentas",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Motor IA e Memória\nLLM e memória agrupada por cliente.",
+        "height": 172,
+        "width": 450,
+        "color": 6
+      },
+      "id": "11ce208f-61bc-4230-bff4-3b525224760c",
+      "name": "Motor IA",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lê o texto de uma URL. Use para acessar links de notícias. Passe APENAS a URL original no campo 'url'.",
+        "url": "=https://api.scraperapi.com/?api_key=REPLACE_WITH_SCRAPERAPI_KEY&url={{ encodeURIComponent($fromAI('url')) }}&render=true",
+        "optimizeResponse": true
+      },
+      "id": "35b31766-80a2-49dc-aea1-c9e8290735bc",
+      "name": "Acessar URL",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Busca vídeos no YouTube sobre um assunto usando o SerpAPI. Retorna os títulos e descrições dos vídeos.",
+        "url": "=https://serpapi.com/search.json?engine=youtube&search_query={{ encodeURIComponent($fromAI('query')) }}&api_key=REPLACE_WITH_SCRAPERAPI_KEY",
+        "optimizeResponse": true
+      },
+      "id": "7e4b7dfe-1f7e-42a7-8226-00de4aefa473",
+      "name": "YouTube Search (SerpAPI)",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": {
+            "field": "minutes",
+            "minutesInterval": 10
+          }
+        }
+      },
+      "id": "4791cfbc-f729-493d-910a-9cd7ed9fd20b",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -640,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "CONFIGURE_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Configure Google Sheet",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1631964683,
+          "mode": "list",
+          "cachedResultName": "Solicitações",
+          "cachedResultUrl": ""
+        },
+        "filtersUI": {
+          "values": {
+            "lookupColumn": "Status",
+            "lookupValue": "Pendente"
+          }
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "id": "03cd8d9e-4fb9-4022-8f92-b23c72d9ab59",
+      "name": "Ler Solicitações",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -448,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Configure Google Sheet",
+          "cachedResultUrl": "",
+          "mode": "list",
+          "value": "CONFIGURE_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1090283962,
+          "mode": "list",
+          "cachedResultName": "Retorno",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Abrangência": "={{ $('Ler Solicitações').first().json['Abrang��ncia'] }}",
+            "Cliente": "={{ $('Ler Solicitações').first().json['Cliente/Marca'] }}",
+            "Data": "={{ $now.toISO() }}",
+            "Exclusões": "={{ $('Ler Solicitações').first().json['Exclusões conhecidas'] }}",
+            "Explicação Plavras-chaves": "={{ $json.resultado.explicacao }}",
+            "Feedback": "={{ $('Ler Solicitações').first().json['Feedback/Considerações'] }}",
+            "Laudo Técnico": "={{ $json.resultado.laudo }}",
+            "O que monitorar": "={{ $('Ler Solicitações').first().json['O que monitorar'] }}",
+            "Setor": "={{ $('Ler Solicitações').first().json['Setor/Ramo'] }}",
+            "Categorias Temáticas": "={{ $('Ler Solicitações').first().json['Categorias Temáticas'] }}"
+          },
+          "matchingColumns": null,
+          "schema": [
+            {
+              "id": "Data",
+              "displayName": "Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Setor",
+              "displayName": "Setor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Abrangência",
+              "displayName": "Abrangência",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "O que monitorar",
+              "displayName": "O que monitorar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Exclusões",
+              "displayName": "Exclusões",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Feedback",
+              "displayName": "Feedback",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Laudo Técnico",
+              "displayName": "Laudo Técnico",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Explicação Plavras-chaves",
+              "displayName": "Explicação Plavras-chaves",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "7481c9f9-4a44-4549-bdca-6a13a3ae7384",
+      "name": "Google Sheets (Retorno)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1696,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const status = String($json.Status || '').trim().toLowerCase();\nif (status !== 'pendente') return [];\nif (!$json.row_number) throw new Error('Solicitação sem row_number; processamento interrompido.');\nconst cliente = String($json['Cliente/Marca'] || '').trim();\nconst monitorar = String($json['O que monitorar'] || '').trim();\nif (!cliente || !monitorar) throw new Error('Campos obrigatórios ausentes: Cliente/Marca e O que monitorar.');\n$json.solicitacao_id = `${$json.row_number}-${cliente.toLowerCase().replace(/\\s+/g, '-')}`;\nreturn { json: $json };"
+      },
+      "id": "568378f1-9d33-4712-8894-c0af4b196671",
+      "name": "Validar Solicitação Pendente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Configure Google Sheet",
+          "cachedResultUrl": "",
+          "mode": "list",
+          "value": "CONFIGURE_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1631964683,
+          "mode": "list",
+          "cachedResultName": "Solicitações",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Concluído",
+            "row_number": "={{ $('Ler Solicitações').first().json['row_number'] }}"
+          },
+          "matchingColumns": "row_number"
+        },
+        "options": {}
+      },
+      "id": "aace1e20-9d34-4154-b44f-e2603d21e430",
+      "name": "Atualizar Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1424,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "Cliente/Marca",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Cliente/Marca'] }}"
+            },
+            {
+              "id": "c2",
+              "name": "Setor/Ramo",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Setor/Ramo'] }}"
+            },
+            {
+              "id": "c3",
+              "name": "Abrangência",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Abrangência'] }}"
+            },
+            {
+              "id": "c4",
+              "name": "O que monitorar",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['O que monitorar'] }}"
+            },
+            {
+              "id": "c5",
+              "name": "Exclusões conhecidas",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Exclusões conhecidas'] }}"
+            },
+            {
+              "id": "c6",
+              "name": "Feedback/Considerações",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Feedback/Considerações'] }}"
+            },
+            {
+              "id": "c7",
+              "name": "Links de Referência",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Links de Referência'] }}"
+            },
+            {
+              "id": "c8",
+              "name": "Lógica Atual (Amtex)",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Lógica Atual (Amtex)'] }}"
+            },
+            {
+              "id": "c9",
+              "name": "Motivo do Ajuste/Reclamação",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Motivo do Ajuste/Reclamação'] }}"
+            },
+            {
+              "id": "c10",
+              "name": "contexto",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['contexto'] }}"
+            },
+            {
+              "id": "c_categ",
+              "name": "Categorias Temáticas",
+              "type": "string",
+              "value": "={{ $('Ler Solicitações').first().json['Categorias Temáticas'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "65ab7569-f364-4116-8b21-73c101b6c46c",
+      "name": "Restaurar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1936,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=ID: {{ $('Ler Solicitações').first().json.row_number }}\nCliente/Marca: {{ $('Ler Solicitações').first().json['Cliente/Marca'] }}\nSetor/Ramo: {{ $('Ler Solicitações').first().json['Setor/Ramo'] }}\nAbrangência: {{ $('Ler Solicitações').first().json['Abrangência'] }}\nO que monitorar: {{ $('Ler Solicitações').first().json['O que monitorar'] }}\nExclusões conhecidas: {{ $('Ler Solicitações').first().json['Exclusões conhecidas'] }}\nFeedback/Considerações: {{ $('Ler Solicitações').first().json['Feedback/Considerações'] }}\nLinks de Referência: {{ $('Ler Solicitações').first().json['Links de Referência'] }}\nLógica Atual (Amtex): {{ $('Ler Solicitações').first().json['Lógica Atual'] }}\nMotivo do Ajuste/Reclamação: {{ $('Ler Solicitações').first().json['Motivo da Reclamação/Ajuste'] }}\nCategorias Temáticas: {{ $('Ler Solicitações').first().json['Categorias Temáticas'] }}\n\nPesquise, gere e entregue somente o JSON do schema.",
+        "options": {
+          "systemMessage": "REGRA DE COMPORTAMENTO: Você é um processador de dados autônomo. NUNCA converse com o usuário. Produza somente JSON válido.\n\nVocê é um Especialista Sênior em Monitoramento de Mídia (Clipping) e OSINT trabalhando na agência Brange Media. Seu objetivo é gerar lógicas de busca precisas para os CLIENTES que receber como entrada.\n\n## REGRAS ABSOLUTAS E PENALIDADES:\n1. NUNCA retorne vazio. Entregue palavras-chave SEMPRE.\n2. LIMITES: Grupo 1 (15-25 termos), Grupo 2 (10-20 termos), Grupo 3 (5-12 termos).\n3. USO DE FERRAMENTAS É OBRIGATÓRIO: Se houver \"Links de Referência\", use 'Acessar URL'.\n4. CASAMENTO LÓGICO: O Grupo 1 (Termos da Marca/Alvo) fará uma interseção (AND) com o Grupo 2 (Contexto). Portanto, os termos do Grupo 2 devem ter correlação direta com os objetivos, setor e fontes do cliente para garantir que a combinação traga resultados precisos.\n\n## MODO DE OPERAÇÃO E VERSÃO:\n- SE \"Lógica Atual\" PREENCHIDO: Modo Revisor. Modifique a lógica APENAS para resolver reclamações do Feedback. Consulte 'Google Sheets - Histórico' obrigatoriamente; versione como [maior versão encontrada + 1].\n- SE \"Lógica Atual\" VAZIO: Modo Criador. Pesquise do zero. Versão obrigatória = 1.\n- O feedback sobre ruído/spam DEVE virar regras de exclusão no GRUPO 3.\n\n## FLUXO OBRIGATÓRIO DE PESQUISA E EXECUÇÃO:\n**Se MODO CRIADOR:**\n1. Ler os Links de Referência usando 'Acessar URL'.\n2. Buscar no Google usando 'SerpAPI'. Priorize realizar sua busca até 4 vezes diretamente no Google ou no Perplexity. Faça também pelo menos uma busca direcionada a redes sociais e fóruns (ex: incluindo \"site:twitter.com OR site:x.com OR site:reddit.com OR site:t.me\" na query) para mapear apelidos, gírias e o tom informal do público.\n3. Escolha OBRIGATORIAMENTE de 1 a 2 links relevantes retornados no Google e use 'Acessar URL' para ler a matéria completa.\n4. Usar 'Wikipedia' para entidades grandes.\n5. Usar 'YouTube Search' SEMPRE que precisar explorar menções em vídeos.\n\n**Se MODO REVISOR:**\n1. Usar OBRIGATORIAMENTE 'Google Sheets - Histórico' para ler e entender todas as versões anteriores deste cliente.\n2. Ler Links de Referência usando 'Acessar URL' (se enviados novos links).\n3. Buscar no Google ('SerpAPI') se precisar pesquisar termos novos apontados no feedback (se o problema for redes sociais, force a busca no Twitter/Reddit).\n\n## SCHEMA DE SAÍDA EXATO (Gere APENAS este JSON e nada mais):\n{\"versao\":1,\"data\":\"YYYY-MM-DD\",\"modo\":\"criador|revisor\",\"grupo1\":[\"...\"],\"grupo2\":[\"...\"],\"grupo3\":[\"...\"],\"formula\":\"...\",\"explicacao\":\"...\",\"fontes\":[{\"url\":\"https://...\",\"finalidade\":\"...\"}]}",
+          "maxIterations": 30
+        }
+      },
+      "id": "00e29f13-659c-4828-bf5f-8f7481b5ed6f",
+      "maxTries": 5,
+      "name": "Agent Fallback",
+      "position": [
+        2096,
+        416
+      ],
+      "retryOnFail": true,
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2096,
+        608
+      ],
+      "id": "b7ae170f-8777-453c-a586-3aee1a7502fe",
+      "name": "OpenAI Chat Model1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Configure Google Sheet",
+          "cachedResultUrl": "",
+          "mode": "list",
+          "value": "CONFIGURE_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "History",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ $now.toISO() }}",
+            "Cliente": "={{ $('Ler Solicitações').first().json['Cliente/Marca'] }}",
+            "Setor": "={{ $('Ler Solicitações').first().json['Setor/Ramo'] }}",
+            "Local": "={{ $('Ler Solicitações').first().json['Abrangência'] }}",
+            "Formula": "={{ $('Validar e Normalizar Resultado').first().json.resultado.formula }}",
+            "Feedback": "={{ $('Ler Solicitações').first().json['Feedback/Considerações'] }}",
+            "Versao": "={{ $('Validar e Normalizar Resultado').first().json.resultado.versao }}",
+            "Categorias Temáticas": "={{ $('Ler Solicitações').first().json['Categorias Temáticas'] }}"
+          },
+          "matchingColumns": null,
+          "schema": [
+            {
+              "id": "Data",
+              "displayName": "Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Setor",
+              "displayName": "Setor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Local",
+              "displayName": "Local",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Formula",
+              "displayName": "Formula",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Feedback",
+              "displayName": "Feedback",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Versao",
+              "displayName": "Versao",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "2ef13d17-0512-43a0-b353-dbf1c579698c",
+      "name": "Gravar Histórico",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1232,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**🧪 V2 — Validação Determinística**\n\nA IA entrega JSON estruturado. Este nó verifica quantidade de termos, duplicidades, operadores indevidos, versão e data; depois reconstrói a fórmula de forma segura.",
+        "width": 416,
+        "color": 6
+      },
+      "id": "ce372946-cb58-438e-b6b8-8f0aac5e4829",
+      "name": "Sticky V2 Validação",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        688,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**✅ V2 — Saída e Histórico**\n\nSomente resultados validados chegam às abas Retorno e History. Em sucesso, a solicitação vira Concluído. Falhas de validação recebem status de erro para revisão manual.",
+        "height": 176,
+        "width": 416,
+        "color": 4
+      },
+      "id": "5744a23c-7d42-4cd1-aa55-8b4b8ace05d6",
+      "name": "Sticky V2 Saída",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1216,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Configure Google Sheet",
+          "cachedResultUrl": "",
+          "mode": "list",
+          "value": "CONFIGURE_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1631964683,
+          "mode": "list",
+          "cachedResultName": "Solicitações",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Processando",
+            "row_number": "={{ $('Validar Solicitação Pendente').item.json['row_number'] }}"
+          },
+          "matchingColumns": "row_number",
+          "schema": [
+            {
+              "id": "Cliente/Marca",
+              "displayName": "Cliente/Marca",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Setor/Ramo",
+              "displayName": "Setor/Ramo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Abrangência",
+              "displayName": "Abrangência",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "O que monitorar",
+              "displayName": "O que monitorar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Exclusões conhecidas",
+              "displayName": "Exclusões conhecidas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Feedback/Considerações",
+              "displayName": "Feedback/Considerações",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Links de Referência",
+              "displayName": "Links de Referência",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lógica Atual",
+              "displayName": "Lógica Atual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Motivo da Reclamação/Ajuste",
+              "displayName": "Motivo da Reclamação/Ajuste",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "7b2eccac-3c5d-48f7-9a5f-5d3fcee59d08",
+      "name": "Marcar como Processando",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -96,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Limpeza do formato e extração de JSON (Anti-Conversa da IA)\nlet raw = String($json.output || '').trim();\n\n// Se a IA colocar papo-furado antes ou depois, extraímos só o JSON pelas chaves {}\nconst jsonMatch = raw.match(/\\{[\\s\\S]*\\}/);\nif (jsonMatch) {\n  raw = jsonMatch[0];\n}\n\nlet d;\ntry { \n  d = JSON.parse(raw); \n} catch (e) { \n  throw new Error(`Saída não é JSON válido: ${e.message}`); \n}\n\n// 3. Verifica se a IA esqueceu de gerar algum campo obrigatório\nconst required = ['versao','data','modo','grupo1','grupo2','grupo3','formula','explicacao','fontes'];\nfor (const k of required) {\n  if (d[k] === undefined || d[k] === null) throw new Error(`Campo obrigatório ausente: ${k}`);\n}\n\n// Configuração matemática dos limites de cada grupo\nconst specs = { grupo1:[15,25], grupo2:[10,20], grupo3:[5,12] };\nconst clean = s => String(s).trim().replace(/\\s+/g,' ');\nconst norm = s => clean(s).toLocaleLowerCase('pt-BR').replace(/^\\\"|\\\"$/g,'');\n\n// NOVO: Mata Duplicidades Silencioso (em vez de dar erro, ele apenas remove a duplicata)\nconst seen = new Map();\nfor (const g of Object.keys(specs)) {\n  if (!Array.isArray(d[g])) throw new Error(`${g} não é uma lista.`);\n  \n  const uniqueGroup = [];\n  for (const t of d[g]) {\n    const n = norm(t);\n    // Se a palavra já existe (independente de maiúscula/minúscula), ignora ela!\n    if (!seen.has(n)) {\n      seen.set(n, g);\n      uniqueGroup.push(clean(t));\n    }\n  }\n  d[g] = uniqueGroup.filter(Boolean);\n}\n\nfor (const [g,[min,max]] of Object.entries(specs)) {\n  // 6. O famoso \"Xerife de Limites\"\n  if (d[g].length < min || d[g].length > max) {\n    throw new Error(`${g} possui ${d[g].length} termos; esperado ${min}-${max}.`);\n  }\n  \n  // 7. Impede que a IA coloque \"AND/OR/NOT\" dentro da palavra-chave \n  // (CORRIGIDO: Expressão regular atualizada para ignorar palavras acentuadas que iniciam com \"not\", ex: Notícias)\n  if (d[g].some(t => /(^|\\s)(AND|OR|NOT)(\\s|$)/i.test(t.replace(/^\\\"|\\\"$/g,'')))) {\n    throw new Error(`${g} contém operador booleano dentro de um termo.`);\n  }\n}\n\n// 9. Validações básicas de formato\nif (!['criador','revisor'].includes(String(d.modo).toLowerCase())) throw new Error('Modo inválido.');\nif (!Number.isInteger(Number(d.versao)) || Number(d.versao) < 1) throw new Error('Versão inválida.');\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(d.data))) throw new Error('Data inválida.');\n\n// 10. O \"Construtor Perfeito\" da Fórmula Booleana\nconst quote = t => /\\s/.test(t) && !(t.startsWith('\"') && t.endsWith('\"')) ? `\"${t}\"` : t;\n\n// 11. Monta a fórmula bruta matematicamente à prova de falhas com os AND / OR / NOT no lugar exato\nd.formula = `( (${d.grupo1.map(quote).join(' OR ')}) ) AND ( (${d.grupo2.map(quote).join(' OR ')}) ) AND NOT ( ${d.grupo3.map(quote).join(' OR ')} )`;\n\n// Filtra fontes\nd.fontes = Array.isArray(d.fontes) ? d.fontes.filter(f => /^https?:\\/\\//i.test(String(f?.url || ''))).slice(0,20) : [];\n\n// 12. Gera a versão \"Bonita\" (Markdown) para exibição humana\nd.laudo = `# Lógica Booleana\\n**Versão:** ${d.versao} | **Data:** ${d.data} | **Modo:** ${d.modo}\\n\\n## GRUPO 1: ASSUNTO E SINÔNIMOS (OR)\\n${d.grupo1.join(' OR ')}\\n\\n## GRUPO 2: CONTEXTO, MARCA E LOCAL (OR)\\n${d.grupo2.join(' OR ')}\\n\\n## GRUPO 3: EXCLUSÕES PREDITIVAS (NOT)\\n${d.grupo3.join(' OR ')}\\n\\n## FÓRMULA LÓGICA FINAL\\n${d.formula}`;\n\n// 13. Entrega os dados formatados\nreturn { \n  json: { \n    ...$('Ler Solicitações').first().json, \n    resultado: d, \n    resultado_json: JSON.stringify(d), \n    output: raw \n  } \n};"
+      },
+      "id": "abaa0c63-5141-45c8-8b67-5f81aa1deb74",
+      "name": "Validar e Normalizar Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Configure Google Sheet",
+          "cachedResultUrl": "",
+          "mode": "list",
+          "value": "CONFIGURE_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1631964683,
+          "mode": "list",
+          "cachedResultName": "Solicitações",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Erro - revisar execução",
+            "row_number": "={{ $('Ler Solicitações').first().json['row_number'] }}"
+          },
+          "matchingColumns": "row_number",
+          "schema": [
+            {
+              "id": "Cliente/Marca",
+              "displayName": "Cliente/Marca",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Setor/Ramo",
+              "displayName": "Setor/Ramo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Abrangência",
+              "displayName": "Abrangência",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "O que monitorar",
+              "displayName": "O que monitorar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Exclusões conhecidas",
+              "displayName": "Exclusões conhecidas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Feedback/Considerações",
+              "displayName": "Feedback/Considerações",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Links de Referência",
+              "displayName": "Links de Referência",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lógica Atual",
+              "displayName": "Lógica Atual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Motivo da Reclamação/Ajuste",
+              "displayName": "Motivo da Reclamação/Ajuste",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "f48fc2ce-5a43-45f1-b281-12cfff8fa45d",
+      "name": "Marcar Erro para Revisão",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        944,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        304,
+        768
+      ],
+      "id": "3fe29135-5d60-43e7-9a62-f3cec7fb204b",
+      "name": "Google Gemini Chat Model"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Wikipedia": {
+      "ai_tool": [
+        {
+          "node": "Agente de Clipping V1",
+          "type": "ai_tool",
+          "index": 0
+        },
+        {
+          "node": "Agent Fallback",
+          "type": "ai_tool",
+          "index": 0
+        }
+      ]
+    },
+    "Schedule Trigger": {
+      "main": {
+        "node": "Ler Solicitações",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Agente de Clipping V1": {
+      "main": [
+        {
+          "node": "Validar e Normalizar Resultado",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Restaurar Dados",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Ler Solicitações": {
+      "main": {
+        "node": "Validar Solicitação Pendente",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Google Sheets (Retorno)": {
+      "main": {
+        "node": "Gravar Histórico",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Restaurar Dados": {
+      "main": {
+        "node": "Agent Fallback",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Agent Fallback": {
+      "main": {
+        "node": "Validar e Normalizar Resultado",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": {
+        "node": "Agent Fallback",
+        "type": "ai_languageModel",
+        "index": 0
+      }
+    },
+    "Gravar Histórico": {
+      "main": {
+        "node": "Atualizar Status",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Validar Solicitação Pendente": {
+      "main": {
+        "node": "Marcar como Processando",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Marcar como Processando": {
+      "main": {
+        "node": "Agente de Clipping V1",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Validar e Normalizar Resultado": {
+      "main": [
+        {
+          "node": "Google Sheets (Retorno)",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Marcar Erro para Revisão",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Google Sheets - Histórico": {
+      "ai_tool": [
+        {
+          "node": "Agente de Clipping V1",
+          "type": "ai_tool",
+          "index": 0
+        },
+        {
+          "node": "Agent Fallback",
+          "type": "ai_tool",
+          "index": 0
+        }
+      ]
+    },
+    "SerpAPI (Google Search)": {
+      "ai_tool": [
+        {
+          "node": "Agente de Clipping V1",
+          "type": "ai_tool",
+          "index": 0
+        },
+        {
+          "node": "Agent Fallback",
+          "type": "ai_tool",
+          "index": 0
+        }
+      ]
+    },
+    "Acessar URL": {
+      "ai_tool": [
+        {
+          "node": "Agente de Clipping V1",
+          "type": "ai_tool",
+          "index": 0
+        },
+        {
+          "node": "Agent Fallback",
+          "type": "ai_tool",
+          "index": 0
+        }
+      ]
+    },
+    "YouTube Search (SerpAPI)": {
+      "ai_tool": [
+        {
+          "node": "Agente de Clipping V1",
+          "type": "ai_tool",
+          "index": 0
+        },
+        {
+          "node": "Agent Fallback",
+          "type": "ai_tool",
+          "index": 0
+        }
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": {
+        "node": "Agente de Clipping V1",
+        "type": "ai_languageModel",
+        "index": 0
+      }
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": null
+}

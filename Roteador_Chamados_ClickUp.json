@@ -1,0 +1,424 @@
+{
+  "name": "Roteador de Chamados ClickUp",
+  "nodes": [
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": {
+                  "id": "1",
+                  "leftValue": "={{ $json.destino_fluxo }}",
+                  "rightValue": "TVR",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                },
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TVR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": {
+                  "id": "2",
+                  "leftValue": "={{ $json.destino_fluxo }}",
+                  "rightValue": "IMPRESSO",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                },
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Impresso e Web"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": {
+                  "id": "3",
+                  "leftValue": "={{ $json.destino_fluxo }}",
+                  "rightValue": "TI",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                },
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TI"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": {
+                  "id": "4",
+                  "leftValue": "={{ $json.destino_fluxo }}",
+                  "rightValue": "QUALIDADE",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                },
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Qualidade"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "de7daf47-47d9-4d95-ae03-ab957f8903dd",
+      "name": "Qual lista?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -1248,
+        5168
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Pega a hora e minutos exatos no fuso horário do Brasil (UTC-3)\nconst timeString = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });\nconst [h, m] = timeString.split(':').map(Number);\nconst horaAtual = h + (m / 60);\n\n// 2. Quadro de horários (Escala TVR)\nconst escala = [\n  { email: 'member01@example.com', inicio: 18.0, fim: 23.0 },\n  { email: 'member02@example.com', inicio: 6.0, fim: 15.0 },\n  { email: 'member03@example.com', inicio: 7.0, fim: 17.0 },\n  { email: 'member04@example.com', inicio: 11.0, fim: 19.0 },\n  { email: 'member05@example.com', inicio: 13.0, fim: 22.0 },\n  { email: 'member06@example.com', inicio: 6.0, fim: 15.0 }\n];\n\n// O e-mail de fallback (usado de madrugada ou se der erro)\nconst fallbackEmail = 'member02@example.com';\n\n// 3. Descobre quem está online AGORA\nlet ativos = escala.filter(p => horaAtual >= p.inicio && horaAtual < p.fim).map(p => p.email);\n\n// Se não tiver ninguém online, Henrique é o padrão\nif (ativos.length === 0) {\n  ativos = [fallbackEmail];\n}\n\n// 4. Lógica de Rodízio (Round-Robin) Dinâmico\nconst mem = $getWorkflowStaticData('global');\n\nif (!mem.ultimo_tvr_email) {\n  mem.ultimo_tvr_email = '';\n}\n\nlet ultimoIndex = ativos.indexOf(mem.ultimo_tvr_email);\nlet proximoIndex = ultimoIndex + 1;\n\nif (proximoIndex >= ativos.length) {\n  proximoIndex = 0;\n}\n\nconst emailEscolhido = ativos[proximoIndex];\nmem.ultimo_tvr_email = emailEscolhido;\n\n// 5. Busca o ID do usuário no ClickUp para fazer a atribuição\nconst workspaceData = $( 'Buscar Membros da Workspace' ).first().json;\nconst clickupUsers = workspaceData.team.members;\n\nlet userEncontrado = clickupUsers.find(m => m.user.email.toLowerCase() === emailEscolhido.toLowerCase());\n\n// 🛡️ PLANO B (Fallback): Se não achar o e-mail sorteado, passa pro Henrique\nif (!userEncontrado) {\n  userEncontrado = clickupUsers.find(m => m.user.email.toLowerCase() === fallbackEmail.toLowerCase());\n}\n\n// Previne erro fatal se até o fallback falhar\nif (userEncontrado) {\n    $json.assignee_ids = [ userEncontrado.user.id ];\n} else {\n    $json.assignee_ids = []; \n}\n\nreturn { json: $json };"
+      },
+      "id": "e0daa17a-f42c-48ad-9cd6-997648715e99",
+      "name": "Round-Robin TVR1",
+      "position": [
+        -656,
+        5040
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Pega a hora e minutos exatos no fuso horário do Brasil (UTC-3)\nconst timeString = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });\nconst [h, m] = timeString.split(':').map(Number);\nconst horaAtual = h + (m / 60);\n\n// 2. Quadro de horários (Escala Impresso e Web)\nconst escala = [\n  { email: 'member07@example.com', inicio: 4.0, fim: 13.0 },\n  { email: 'member08@example.com', inicio: 4.0, fim: 13.0 },\n  { email: 'member09@example.com', inicio: 5.0, fim: 14.0 },\n  { email: 'member10@example.com', inicio: 5.0, fim: 14.0 }\n];\n\n// O e-mail de fallback (usado de madrugada ou se der erro)\nconst fallbackEmail = 'member09@example.com';\n\n// 3. Descobre quem está online AGORA\nlet ativos = escala.filter(p => horaAtual >= p.inicio && horaAtual < p.fim).map(p => p.email);\n\n// Se não tiver ninguém online, Alesson é o padrão\nif (ativos.length === 0) {\n  ativos = [fallbackEmail];\n}\n\n// 4. Lógica de Rodízio (Round-Robin) Dinâmico\nconst mem = $getWorkflowStaticData('global');\n\nif (!mem.ultimo_impresso_email) {\n  mem.ultimo_impresso_email = '';\n}\n\nlet ultimoIndex = ativos.indexOf(mem.ultimo_impresso_email);\nlet proximoIndex = ultimoIndex + 1;\n\nif (proximoIndex >= ativos.length) {\n  proximoIndex = 0;\n}\n\nconst emailEscolhido = ativos[proximoIndex];\nmem.ultimo_impresso_email = emailEscolhido;\n\n// 5. Busca o ID do usuário no ClickUp para fazer a atribuição\nconst workspaceData = $( 'Buscar Membros da Workspace' ).first().json;\nconst clickupUsers = workspaceData.team.members;\n\nlet userEncontrado = clickupUsers.find(m => m.user.email.toLowerCase() === emailEscolhido.toLowerCase());\n\n// 🛡️ PLANO B (Fallback): Se não achar o e-mail sorteado, passa pro Alesson\nif (!userEncontrado) {\n  userEncontrado = clickupUsers.find(m => m.user.email.toLowerCase() === fallbackEmail.toLowerCase());\n}\n\n// Previne erro fatal se até o fallback falhar\nif (userEncontrado) {\n    $json.assignee_ids = [ userEncontrado.user.id ];\n} else {\n    $json.assignee_ids = []; \n}\n\nreturn { json: $json };"
+      },
+      "id": "7c88700a-5e9e-47b0-babf-913e0cfcb7d1",
+      "name": "Round-Robin Impresso1",
+      "position": [
+        -768,
+        5184
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "**📌 POST-IT 1:**\n\nO Gatilho e a Busca de Membros\nNós: ClickUp Trigger e Buscar Membros da Workspace\n\n**O que fazem:**\n\nO Trigger acorda o n8n apenas quando um novo chamado é criado no ClickUp.\n\nO nó seguinte faz uma chamada HTTP para buscar o mapa completo de IDs e e-mails de todo mundo da empresa. Sem esse mapa, as roletas não conseguem saber quem é quem na hora de atribuir.",
+        "height": 304,
+        "width": 368,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2112,
+        4848
+      ],
+      "id": "0fb56c11-5ed6-4694-b1ea-4e0c12965113",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "**📌 POST-IT 2:**\n\nA Trava de Segurança (CX vs Operação)\n\nNó: Validar CX vs Operacao1 (JavaScript)\n\n**O que faz:**\n\nVarre os responsáveis atuais: Olha quem já está no card.\n\nSe tiver alguém do TI, Qualidade ou Operação: Cancela o fluxo mandando um texto REJEITADO_JA_TEM_OPS. Isso impede que a automação mude o card se um técnico já tiver assumido o chamado na mão.\n\nSe for só o CX (ou você): Deixa passar e carimba o texto com o destino.",
+        "height": 368,
+        "width": 416,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        5456
+      ],
+      "id": "5d026ba5-e16f-4e7c-883c-738ab670131c",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "**📌 POST-IT 3:**\n\nO Direcionador de Tráfego\nNó: Qual lista? (Switch)\n\n**O que faz:**\n\nFunciona como um guarda de trânsito. Ele lê a palavra (destino_fluxo) que o post-it anterior gerou.\n\nSe for TVR, joga pra rota de cima. Se for IMPRESSO, joga pro meio. E assim por diante.\n\nSe receber qualquer outra coisa (como REJEITADO), ele simplesmente fecha a porta e encerra o fluxo em paz.",
+        "height": 304,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        4832
+      ],
+      "id": "14556f0d-063c-4601-9a6e-10736068f04a",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "**📌 POST-IT 4:**\n\nO Algoritmo da Roleta (Round-Robin)\nNós: Nós JavaScript das equipes\n\n**O que fazem:**\n\nConsultam a memória global: Usam o $getWorkflowStaticData para lembrar quem foi o último a receber um ticket.\n\nGiram a fila: Pegam o número do último analista, somam +1 e resetam quando chega ao final.\n\nPara a Qualidade: Ignora a roleta e pega os dois diretamente.",
+        "height": 400,
+        "width": 336,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        5280
+      ],
+      "id": "dc68b00b-c5a1-42ac-aa06-2ab3248d7f8f",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "**📌 POST-IT 5:**\n\nO Executor Final\nNó: Atribuir via HTTP1\n\n**O que faz:**\n\nÉ o braço forte do fluxo. Ele faz um envio do tipo PUT para a API do ClickUp usando o comando \"add\".\n\nIsso garante que os analistas sorteados sejam adicionados ao chamado, mantendo quem abriu (CX) e quem mais estiver acompanhando o card (como você) totalmente intactos lá dentro.",
+        "height": 320,
+        "width": 336,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        176,
+        4848
+      ],
+      "id": "68752f1c-5e9f-47a4-9bae-66df02a5d643",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const opsEmails = [\n  'member02@example.com',\n  'member07@example.com',\n  'member08@example.com',\n  'member10@example.com',\n  'member11@example.com',\n  'member12@example.com'\n];\n\nconst assignees = $json.assignees || [];\nconst assigneeEmails = assignees.map(a => a.email.toLowerCase());\n\nconst temOps = assigneeEmails.some(email => opsEmails.includes(email));\n\nif (temOps) {\n  return { json: { destino_fluxo: 'REJEITADO_JA_TEM_OPS' } };\n}\n\nconst listId = $json.list ? $json.list.id : '';\nconst folderId = $json.folder ? $json.folder.id : '';\nlet destino = 'DESCONHECIDO';\n\nif (listId === '901113067363') {\n  destino = 'TVR';\n} else if (listId === '901106940543') {\n  destino = 'IMPRESSO';\n} else if (listId === '901107255265') {\n  destino = 'TI';\n} else if (listId === '90114026634' || folderId === '90114026634') {\n  destino = 'QUALIDADE';\n}\n\nconst resultadoFinal = Object.assign({}, $json);\nresultadoFinal.destino_fluxo = destino;\n\nreturn { json: resultadoFinal };"
+      },
+      "id": "d9f53438-02ff-4433-8c92-cc24528ce698",
+      "name": "Validar CX vs Operacao",
+      "position": [
+        -1488,
+        5296
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "=https://api.clickup.com/api/v2/team/YOUR_TEAM_ID",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "options": {}
+      },
+      "id": "6392c96f-b1d5-4f0b-bf6a-870530edb74e",
+      "name": "Buscar Membros da Workspace",
+      "position": [
+        -1920,
+        5184
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.clickup.com/api/v2/task/{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"assignees\": {\n    \"add\": {{ JSON.stringify($json.assignee_ids) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "7c8c1528-4e27-434a-ba51-99c89f8c51ba",
+      "name": "Atribuir via HTTP1",
+      "position": [
+        0,
+        5184
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "=https://api.clickup.com/api/v2/task/{{ $('ClickUp Trigger').item.json.task_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "options": {}
+      },
+      "id": "a08ced9b-1ed5-4b18-a526-c49c2c1e3346",
+      "name": "Buscar Tarefa na API",
+      "position": [
+        -1680,
+        5184
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "team": "YOUR_CLICKUP_TEAM_ID",
+        "events": "taskCreated",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.clickUpTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2144,
+        5184
+      ],
+      "id": "cb62a1b1-1b2a-4fae-a529-2a69d73addeb",
+      "name": "ClickUp Trigger"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const emailTI = [\n];\nconst workspaceData = $( 'Buscar Membros da Workspace' ).first().json;\nconst clickupUsers = workspaceData.team.members;\nconst userEncontrado = clickupUsers.find(m => m.user.email.toLowerCase() === emailTI.toLowerCase());\n\nif (!userEncontrado) {\n  throw new Error(`Usuário de TI com e-mail ${emailTI} não encontrado.`);\n}\n\n$json.assignee_ids = [ userEncontrado.user.id ];\nreturn { json: $json };"
+      },
+      "id": "a6f95cfd-fee0-4287-b983-5146a3d6e918",
+      "name": "Direto TI1 - desativado",
+      "position": [
+        -848,
+        5344
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Pega a hora e minutos exatos no fuso horário do Brasil (UTC-3)\nconst timeString = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });\nconst [h, m] = timeString.split(':').map(Number);\nconst horaAtual = h + (m / 60);\n\n// 2. Quadro de horários (Escala da Qualidade)\nconst escala = [\n  { email: 'member13@example.com', inicio: 5.5, fim: 14.5 },         \n  // periodo de entrega de relatorio mensal, Carol precisa ficar focada até dia 07/08\n  // { email: 'member14@example.com', inicio: 8.0, fim: 14.0 },      \n  { email: 'member12@example.com', inicio: 12.25, fim: 21.25 } \n];\n\n// O e-mail de fallback (usado de madrugada ou se der erro)\nconst fallbackEmail = 'member12@example.com';\n\n// 3. Descobre quem está online AGORA\nlet ativos = escala.filter(p => horaAtual >= p.inicio && horaAtual < p.fim).map(p => p.email);\n\n// Se não tiver ninguém online, Marina é o padrão\nif (ativos.length === 0) {\n  ativos = [fallbackEmail];\n}\n\n// 4. Lógica de Rodízio (Round-Robin) Dinâmico\nconst mem = $getWorkflowStaticData('global');\n\nif (!mem.ultimo_qualidade_email) {\n  mem.ultimo_qualidade_email = '';\n}\n\nlet ultimoIndex = ativos.indexOf(mem.ultimo_qualidade_email);\nlet proximoIndex = ultimoIndex + 1;\n\nif (proximoIndex >= ativos.length) {\n  proximoIndex = 0;\n}\n\nconst emailEscolhido = ativos[proximoIndex];\nmem.ultimo_qualidade_email = emailEscolhido;\n\n// 5. Busca o ID do usuário no ClickUp para fazer a atribuição\nconst workspaceData = $( 'Buscar Membros da Workspace' ).first().json;\nconst clickupUsers = workspaceData.team.members;\n\nlet userEncontrado = clickupUsers.find(m => m.user.email.toLowerCase() === emailEscolhido.toLowerCase());\n\n// 🛡️ PLANO B (Fallback): Se não achar o e-mail sorteado, passa pra Marina\nif (!userEncontrado) {\n  userEncontrado = clickupUsers.find(m => m.user.email.toLowerCase() === fallbackEmail.toLowerCase());\n}\n\n// Previne erro fatal se até o fallback falhar\nif (userEncontrado) {\n    $json.assignee_ids = [ userEncontrado.user.id ];\n} else {\n    $json.assignee_ids = []; \n}\n\nreturn { json: $json };"
+      },
+      "id": "9e9e19c8-08ef-4f50-9af5-12001d365ae8",
+      "name": "Round-Robin Qualidade",
+      "position": [
+        -848,
+        5504
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Qual lista?": {
+      "main": [
+        {
+          "node": "Round-Robin TVR1",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Round-Robin Impresso1",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Direto TI1 - desativado",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Round-Robin Qualidade",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Round-Robin TVR1": {
+      "main": {
+        "node": "Atribuir via HTTP1",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Round-Robin Impresso1": {
+      "main": {
+        "node": "Atribuir via HTTP1",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Validar CX vs Operacao": {
+      "main": {
+        "node": "Qual lista?",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Buscar Membros da Workspace": {
+      "main": {
+        "node": "Buscar Tarefa na API",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Buscar Tarefa na API": {
+      "main": {
+        "node": "Validar CX vs Operacao",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Atribuir via HTTP1": {
+      "main": null
+    },
+    "ClickUp Trigger": {
+      "main": {
+        "node": "Buscar Membros da Workspace",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Direto TI1 - desativado": {
+      "main": {
+        "node": "Atribuir via HTTP1",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Round-Robin Qualidade": {
+      "main": {
+        "node": "Atribuir via HTTP1",
+        "type": "main",
+        "index": 0
+      }
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "nodeGroups": null
+}

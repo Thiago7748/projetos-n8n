@@ -1,0 +1,428 @@
+{
+  "name": "Daily Digest CX & OP",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 13 * * 1-5"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 0 18 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "b382932c-e0d8-428a-a809-9530a1f67656",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =========================================================\n// CONFIGURAÇÃO DE TESTE RETROATIVO\n// =========================================================\nconst MODO_TESTE = false; \nconst DATA_TESTE = '2026-07-23'; \nconst TURNO_TESTE = 1; \n// =========================================================\n\nlet targetDateStr = '';\nlet isTurno1 = false;\n\nif (MODO_TESTE) {\n  targetDateStr = DATA_TESTE;\n  isTurno1 = (TURNO_TESTE === 1);\n} else {\n  const fmt = new Intl.DateTimeFormat('en-US', {\n    timeZone: 'America/Sao_Paulo',\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n    hour: '2-digit',\n    hour12: false\n  });\n\n  const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));\n  const year = parts.year;\n  const month = parts.month;\n  const day = parts.day;\n  let hour = parseInt(parts.hour, 10);\n  if (hour === 24) hour = 0;\n\n  targetDateStr = `${year}-${month}-${day}`;\n  isTurno1 = (hour <= 15);\n}\n\nlet startISO = '';\nlet endISO = '';\nlet turnoNome = '';\n\nif (isTurno1) {\n  startISO = `${targetDateStr}T05:00:00-03:00`;\n  endISO = `${targetDateStr}T13:00:00-03:00`;\n  turnoNome = '05h às 13h';\n} else {\n  startISO = `${targetDateStr}T13:00:00-03:00`;\n  endISO = `${targetDateStr}T18:00:00-03:00`;\n  turnoNome = '13h às 18h';\n}\n\nconst date_created_gt = new Date(startISO).getTime();\nconst date_created_lt = new Date(endISO).getTime();\n\nreturn { \n  json: { \n    date_created_gt,\n    date_created_lt,\n    turno: turnoNome,\n    data_referencia: targetDateStr\n  } \n};"
+      },
+      "id": "eb9b7242-9a68-4107-b750-8c2089db79fe",
+      "name": "Definir Turno",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.clickup.com/api/v2/team/YOUR_TEAM_ID/task?include_closed=true&subtasks=true&date_created_gt={{$json.date_created_gt}}&date_created_lt={{$json.date_created_lt}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "options": {}
+      },
+      "id": "a325358f-e6a9-47c7-bcb4-df2c0fbae00c",
+      "name": "Buscar Tarefas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2512,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tasks = $json.tasks || [];\nconst infoTurno = $('Definir Turno').first().json;\n\n// Filtra a lista de TI (901107255265)\nconst tarefasValidas = tasks.filter(t => t.list.id !== '901107255265');\n\nif (tarefasValidas.length === 0) {\n    return [];\n}\n\nreturn tarefasValidas.map(task => {\n  return {\n    json: {\n      turno: infoTurno.turno,\n      data_ref: infoTurno.data_referencia,\n      task_id: task.id,\n      name: task.name,\n      description: task.description ? task.description.substring(0, 300) : '',\n      status: task.status,\n      creator: task.creator,\n      date_created: task.date_created\n    }\n  };\n});"
+      },
+      "id": "e2857558-2058-44c9-9ccd-34fc94005987",
+      "name": "Filtrar e Mapear",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "CONFIGURE_GOOGLE_SHEET_ID",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Página1",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ $json.data_ref }}",
+            "Turno": "={{ $json.turno }}",
+            "Ticket": "={{ $json.name }}",
+            "Analista": "={{ $json.creator.username }}"
+          },
+          "matchingColumns": null,
+          "schema": [
+            {
+              "id": "Data",
+              "displayName": "Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Turno",
+              "displayName": "Turno",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Analista",
+              "displayName": "Analista",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ticket",
+              "displayName": "Ticket",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "204cfcdc-9378-4537-8353-5bdaaa9834c7",
+      "name": "Salvar no Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2896,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.clickup.com/api/v2/task/{{$json.task_id}}/comment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "options": {}
+      },
+      "id": "96e54ae0-7701-47ff-9817-9595ee3215fe",
+      "name": "Buscar Comentários",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2896,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tasks = $('Filtrar e Mapear').all().map(i => i.json);\nconst commentsResults = $input.all().map(i => i.json);\nconst infoTurno = tasks.length > 0 ? tasks[0] : {};\n\nlet totalAbertos = tasks.length;\nlet concluidos = 0;\nlet emAndamento = 0;\nlet naoIniciados = 0;\n\nlet somaSlaMinutos = 0;\nlet tarefasComSla = 0;\n\ntasks.forEach((task, index) => {\n    const statusType = task.status ? (task.status.type || '') : '';\n    const statusName = task.status ? (task.status.status || '').toLowerCase() : '';\n\n    if (statusType === 'done' || statusType === 'closed') {\n        concluidos++;\n    } else if (statusName.includes('não iniciado') || statusName.includes('nao iniciado') || statusType === 'unstarted') {\n        naoIniciados++;\n    } else {\n        emAndamento++;\n    }\n\n    const comments = commentsResults[index] ? (commentsResults[index].comments || []) : [];\n    if (comments.length > 0) {\n        const creatorId = task.creator ? task.creator.id : null;\n        const respostasAnalistas = comments.filter(c => c.user && c.user.id !== creatorId);\n\n        if (respostasAnalistas.length > 0) {\n            const sortedComments = respostasAnalistas.sort((a, b) => parseInt(a.date) - parseInt(b.date));\n            const firstComment = sortedComments[0];\n            const slaMinutos = Math.round((parseInt(firstComment.date) - parseInt(task.date_created)) / 60000);\n            \n            if (slaMinutos >= 0) {\n                somaSlaMinutos += slaMinutos;\n                tarefasComSla++;\n            }\n        }\n    }\n});\n\nlet slaFormatado = \"Sem respostas\";\nif (tarefasComSla > 0) {\n    const slaMedia = Math.round(somaSlaMinutos / tarefasComSla);\n    const h = Math.floor(slaMedia / 60);\n    const m = slaMedia % 60;\n    slaFormatado = h > 0 ? `${h}h ${m}m` : `${m}m`;\n}\n\nconst pctResolvidos = totalAbertos > 0 ? Math.round((concluidos / totalAbertos) * 100) : 0;\nconst pctConcluidos = pctResolvidos;\nconst pctEmAndamento = totalAbertos > 0 ? Math.round((emAndamento / totalAbertos) * 100) : 0;\nconst pctNaoIniciados = totalAbertos > 0 ? Math.round((naoIniciados / totalAbertos) * 100) : 0;\n\nreturn {\n    json: {\n        turno: infoTurno.turno,\n        data_referencia: infoTurno.data_ref,\n        metricas: {\n            total_abertos: totalAbertos,\n            sla_media: slaFormatado,\n            pct_resolvidos: pctResolvidos,\n            concluidos,\n            pct_concluidos: pctConcluidos,\n            em_andamento: emAndamento,\n            pct_em_andamento: pctEmAndamento,\n            nao_iniciados: naoIniciados,\n            pct_nao_iniciados: pctNaoIniciados\n        },\n        tarefas: tasks.map(t => ({ titulo: t.name, descricao: t.description }))\n    }\n};"
+      },
+      "id": "7da24d27-cf4c-45d0-a1d8-3e9de53f100a",
+      "name": "Calculadora de SLA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Você é o auditor de operações da Brange Media, uma empresa focada em clipping, monitoramento de mídia (TV, Rádio, Web, Impresso) e análise de dados. Com base nos dados em JSON, gere o Daily Digest EXATAMENTE no formato abaixo (Atenção: use apenas 1 asterisco * para negrito, pois a mensagem vai para o Slack):\n\nSua tarefa é gerar o resumo diário (Daily Digest) EXATAMENTE com o template fornecido abaixo.\n\n**🚨 REGRAS DE FORMATAÇÃO (CRÍTICO PARA O SLACK):**\n1. O Slack utiliza crases (`) para blocos de código e asterisco simples (*) para negrito.\n2. NÃO ESCAPE NENHUM CARACTERE. É estritamente proibido usar barras invertidas (\\) antes de crases ou asteriscos na sua resposta final. Retorne os caracteres crus exatamente como no template.\n3. Copie o template abaixo e apenas substitua os valores entre chaves {}. Deixe o resto intacto e não adicione saudações.\n\n**TEMPLATE OBRIGATÓRIO:**\n\n`CX & OP — Daily Digest | {{ $json.data_referencia }} (Turno {{ $json.turno }})`\n\n📊 *{{ $json.metricas.total_abertos }}* Novos Chamados  •  ⏱️ Tempo 1ª Resposta: *{{ $json.metricas.sla_media }}*  •  ✅ *{{ $json.metricas.pct_resolvidos }}%* Resolvidos\n\n🏷️ *Principais Assuntos:*\n• {Categoria Macro 1} ({pct}%)\n• {Categoria Macro 2} ({pct}%)\n• {Categoria Macro 3} ({pct}%)\n\n⏳ *Status dos Chamados:*\n🟢 *{{ $json.metricas.concluidos }}* Concluídos ({{ $json.metricas.pct_concluidos }}%)\n🟡 *{{ $json.metricas.em_andamento }}* Em Tratativa / Andamento ({{ $json.metricas.pct_em_andamento }}%)\n🔴 *{{ $json.metricas.nao_iniciados }}* Não Iniciados ({{ $json.metricas.pct_nao_iniciados }}%)\n\n**CONTEXTO DO NEGÓCIO PARA CATEGORIZAÇÃO:**\nNossos tickets diários possuem naturezas muito específicas. Algumas das nossas rotinas reais incluem:\n- Pedidos de Inserção ou Exclusão de matérias/notícias em boletins.\n- Setup ou Configuração de Novos Monitoramentos (Trials).\n- Pedidos de Verificação/Busca de citações na mídia para clientes.\n- Elaboração de minutas e levantamentos jurídicos/administrativos.\n- Manutenção e passagem de bastão de Mídias Sociais.\n\n**REGRAS RÍGIDAS DE CATEGORIZAÇÃO:**\n1. **Principais Assuntos:** Analise os títulos e descrições fornecidos e utilize o contexto acima para dar nomes EXATOS e DIRETOS para as macro-categorias. \n2. **PROIBIDO:** É estritamente proibido usar termos genéricos e corporativos como \"Gestão de Clippings\", \"Otimização de Monitoramento\", \"Análise Operacional\". Dê o nome real do que está sendo feito (ex: \"Pedidos de Inserção e Exclusão\", \"Verificação de Mídia\").\n3. NUNCA use o título exato de uma única tarefa, nem nomes de clientes (ex: Kasane, Redemob, SGB).\n4. Calcule o percentual real e aproximado que cada macro-categoria representa sobre o total de {{ $json.metricas.total_abertos }} chamados.\n\nDados das tarefas:\n{{ JSON.stringify($json.tarefas) }}"
+      },
+      "id": "f4c70408-47ea-4136-bb79-14ca377f4287",
+      "name": "Gerar Daily Digest (Gemini Principal)",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        3296,
+        288
+      ],
+      "settings": {
+        "onError": "continueErrorOutput"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "b1b3c904-3e8b-4ad1-9f27-d1a7f36593ac",
+      "name": "Gemini 2.5 Flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3216,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "minutes"
+      },
+      "id": "4076fb68-e9ce-42f9-b507-8db6f5b91338",
+      "name": "Aguardar 10 Minutos",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        3424,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "YOUR_SLACK_CHANNEL_ID",
+          "mode": "id"
+        },
+        "text": "={{ $json.text }}\n\n🔗 <https://docs.google.com/spreadsheets/d/CONFIGURE_GOOGLE_SHEET_ID|Ver chamados por agente (Google Sheets)>",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "c05249b1-51fc-4509-ac6f-cbac242aab99",
+      "name": "Enviar para o Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        3936,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "YOUR_SLACK_CHANNEL_ID",
+          "mode": "id"
+        },
+        "text": "⚠️ *Aviso do Sistema:* Não foi possível gerar o Daily Digest automático deste turno por indisponibilidade momentânea nas APIs de Inteligência Artificial. A tentativa de Fallback também falhou.\n\nMas não se preocupe! Todos os chamados foram processados e registrados com sucesso.\n🔗 <https://docs.google.com/spreadsheets/d/CONFIGURE_GOOGLE_SHEET_ID|Clique aqui para acessar a planilha de produtividade e ver os tickets>",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "5f5cbb19-1343-48aa-9414-e2ae3159a715",
+      "name": "Aviso de Falha no Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        4000,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        3616,
+        688
+      ],
+      "id": "a963c2e2-da61-4a52-9275-758cbad849c5",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Você é o auditor de operações da Brange Media, uma empresa focada em clipping, monitoramento de mídia (TV, Rádio, Web, Impresso) e análise de dados. Com base nos dados em JSON, gere o Daily Digest EXATAMENTE no formato abaixo (Atenção: use apenas 1 asterisco * para negrito, pois a mensagem vai para o Slack):\n\nSua tarefa é gerar o resumo diário (Daily Digest) EXATAMENTE com o template fornecido abaixo.\n\n**🚨 REGRAS DE FORMATAÇÃO (CRÍTICO PARA O SLACK):**\n1. O Slack utiliza crases (`) para blocos de código e asterisco simples (*) para negrito.\n2. NÃO ESCAPE NENHUM CARACTERE. É estritamente proibido usar barras invertidas (\\) antes de crases ou asteriscos na sua resposta final. Retorne os caracteres crus exatamente como no template.\n3. Copie o template abaixo e apenas substitua os valores entre chaves {}. Deixe o resto intacto e não adicione saudações.\n\n**TEMPLATE OBRIGATÓRIO:**\n\n`CX & OP — Daily Digest | {{ $json.data_referencia }} (Turno {{ $json.turno }})`\n\n📊 *{{ $json.metricas.total_abertos }}* Novos Chamados  •  ⏱️ Tempo 1ª Resposta: *{{ $json.metricas.sla_media }}*  •  ✅ *{{ $json.metricas.pct_resolvidos }}%* Resolvidos\n\n🏷️ *Principais Assuntos:*\n• {Categoria Macro 1} ({pct}%)\n• {Categoria Macro 2} ({pct}%)\n• {Categoria Macro 3} ({pct}%)\n\n⏳ *Status dos Chamados:*\n🟢 *{{ $json.metricas.concluidos }}* Concluídos ({{ $json.metricas.pct_concluidos }}%)\n🟡 *{{ $json.metricas.em_andamento }}* Em Tratativa / Andamento ({{ $json.metricas.pct_em_andamento }}%)\n🔴 *{{ $json.metricas.nao_iniciados }}* Não Iniciados ({{ $json.metricas.pct_nao_iniciados }}%)\n\n**CONTEXTO DO NEGÓCIO PARA CATEGORIZAÇÃO:**\nNossos tickets diários possuem naturezas muito específicas. Algumas das nossas rotinas reais incluem:\n- Pedidos de Inserção ou Exclusão de matérias/notícias em boletins.\n- Setup ou Configuração de Novos Monitoramentos (Trials).\n- Pedidos de Verificação/Busca de citações na mídia para clientes.\n- Elaboração de minutas e levantamentos jurídicos/administrativos.\n- Manutenção e passagem de bastão de Mídias Sociais.\n\n**REGRAS RÍGIDAS DE CATEGORIZAÇÃO:**\n1. **Principais Assuntos:** Analise os títulos e descrições fornecidos e utilize o contexto acima para dar nomes EXATOS e DIRETOS para as macro-categorias. \n2. **PROIBIDO:** É estritamente proibido usar termos genéricos e corporativos como \"Gestão de Clippings\", \"Otimização de Monitoramento\", \"Análise Operacional\". Dê o nome real do que está sendo feito (ex: \"Pedidos de Inserção e Exclusão\", \"Verificação de Mídia\").\n3. NUNCA use o título exato de uma única tarefa, nem nomes de clientes (ex: Kasane, Redemob, SGB).\n4. Calcule o percentual real e aproximado que cada macro-categoria representa sobre o total de {{ $json.metricas.total_abertos }} chamados.\n\nDados das tarefas:\n{{ JSON.stringify($json.tarefas) }}"
+      },
+      "id": "fbe38f95-3b56-4df7-b0fa-98ffd526d3a1",
+      "name": "Gerar Daily Digest (Fallback)",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        3616,
+        512
+      ],
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000
+      },
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": {
+        "node": "Definir Turno",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Definir Turno": {
+      "main": {
+        "node": "Buscar Tarefas",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Buscar Tarefas": {
+      "main": {
+        "node": "Filtrar e Mapear",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Filtrar e Mapear": {
+      "main": [
+        {
+          "node": "Buscar Comentários",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Salvar no Sheets",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Buscar Comentários": {
+      "main": {
+        "node": "Calculadora de SLA",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Calculadora de SLA": {
+      "main": {
+        "node": "Gerar Daily Digest (Gemini Principal)",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Gemini 2.5 Flash": {
+      "ai_languageModel": {
+        "node": "Gerar Daily Digest (Gemini Principal)",
+        "type": "ai_languageModel",
+        "index": 0
+      }
+    },
+    "Gerar Daily Digest (Gemini Principal)": {
+      "main": [
+        {
+          "node": "Enviar para o Slack",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Aguardar 10 Minutos",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Aguardar 10 Minutos": {
+      "main": {
+        "node": "Gerar Daily Digest (Fallback)",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": {
+        "node": "Gerar Daily Digest (Fallback)",
+        "type": "ai_languageModel",
+        "index": 0
+      }
+    },
+    "Gerar Daily Digest (Fallback)": {
+      "main": [
+        {
+          "node": "Enviar para o Slack",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Aviso de Falha no Slack",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodeGroups": null
+}
