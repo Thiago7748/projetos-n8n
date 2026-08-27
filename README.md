@@ -1,89 +1,204 @@
 # Portfólio de Automações e Integrações (n8n)
 
-Este repositório contém as exportações JSON dos meus principais workflows construídos no **n8n**.
+Este repositório reúne exportações JSON dos meus principais workflows construídos no **n8n**. Cada arquivo pode ser importado diretamente em uma instância do n8n para estudo e configuração.
 
-Cada arquivo `.json` presente aqui pode ser importado diretamente para qualquer instância do n8n para visualização do fluxo. Abaixo, detalho a arquitetura e o propósito de cada um deles.
+> **Configuração:** por segurança, credenciais, chaves de API, IDs de planilhas, canais, workspaces e dados pessoais foram removidos ou substituídos por placeholders. Após importar um workflow, configure as credenciais e os identificadores indicados antes de ativá-lo.
 
 ---
 
-## 1. Suporte Automatizado ao Cliente
-![draft case](https://github.com/user-attachments/assets/98bfc08e-9ef8-4314-b59e-635dfe81c8d4)
-**Arquivo:** `Interview_Case.json`
+## 1. Gerador de Lógica Avançada — Clipping e Palavras-chave
 
+**Arquivo:** `Gerador_Logica_Avancada_Clipping.json`
 
-Um case técnico focado em otimização de atendimento ao cliente via e-mail, utilizando inteligência artificial para ler, classificar e redigir respostas baseadas em dados de plataformas externas (Mocks de Shopify e CRM).
+Uma esteira inteligente de clipping que transforma solicitações registradas no Google Sheets em pesquisas estruturadas. O workflow gera e refina palavras-chave, consulta múltiplas fontes, normaliza o resultado e mantém um histórico operacional completo.
 
 **Arquitetura do Fluxo:**
-1. **Trigger:** Monitora a caixa de entrada do Gmail buscando por e-mails com a tag "Pendente".
-2. **Registro:** Faz o backup do e-mail recebido em uma planilha do Google Sheets.
-3. **Roteamento:** Um nó `Switch` atua como roteador principal, analisando o conteúdo/assunto para direcionar o fluxo para a esteira correta de atendimento (Cancelamento, Andamento, Parado ou Fallback).
-4. **Respostas Templates:** Para cenários conhecidos, injeta respostas padronizadas em templates, mantendo o tom de voz da marca.
-5. **Enriquecimento de Dados:** Faz consultas a APIs simuladas (Shopify para status de pedidos e CRM para histórico do cliente).
-6. **IA Generativa:** Emprega o Google Gemini para analisar os dados enriquecidos e gerar uma resposta humanizada e contextualizada.
-7. **Ação Final:** Cria um rascunho (draft) da resposta no Gmail, pronto para ser revisado ou disparado por um atendente humano.
+
+1. **Agendador:** verifica novas solicitações a cada 10 minutos.
+2. **Leitura e validação:** busca itens pendentes no Google Sheets e valida os campos necessários antes do processamento.
+3. **Controle de estado:** marca a solicitação como em processamento para evitar execução duplicada.
+4. **Motor de IA:** utiliza um agente com Google Gemini para interpretar o briefing, gerar palavras-chave e conduzir a pesquisa.
+5. **Pesquisa multicanal:** combina Google/SerpAPI, YouTube, Wikipedia e acesso direto a páginas.
+6. **Fallback inteligente:** aciona um segundo agente baseado em OpenAI quando o processamento principal não produz uma resposta válida.
+7. **Normalização:** valida a estrutura retornada, restaura o contexto original e prepara o resultado final.
+8. **Persistência:** grava retorno e histórico no Google Sheets, atualiza o status e direciona falhas para revisão.
 
 **Destaques de Engenharia:**
-- Uso de nós condicionais e lógicos (`Switch`, `If`) para garantir que apenas os fluxos necessários sejam executados, economizando recursos.
-- Tratamento de Mocks de API para simular um ambiente de produção real.
-- Delegação de tarefas cognitivas (entendimento de contexto) para LLMs (Large Language Models).
+
+- Orquestração de agentes com ferramentas especializadas e múltiplas fontes de pesquisa.
+- Estratégia de fallback entre provedores de IA para aumentar a resiliência.
+- Máquina de estados no Google Sheets para rastreabilidade e prevenção de duplicidades.
+- Validação e normalização do JSON gerado antes da persistência.
 
 ---
 
-## 2. Monitoramento de Status de Agentes (Twilio ➜ Google Chat)
+## 2. Draftly — Suporte Automatizado ao Cliente
+
+![Workflow Draftly](./assets/interview-case.png)
+
+**Arquivo:** `Draftly_Case.json`
+
+Um case técnico focado em otimização do atendimento por e-mail. A automação lê e classifica solicitações, consulta dados de apoio e cria respostas contextualizadas para revisão humana.
+
+**Arquitetura do Fluxo:**
+
+1. **Trigger:** monitora a caixa de entrada do Gmail em busca de mensagens pendentes.
+2. **Registro:** salva os dados recebidos no Google Sheets.
+3. **Roteamento:** classifica os chamados em cancelamento, andamento, pedido parado ou fallback.
+4. **Templates:** aplica respostas padronizadas aos cenários conhecidos.
+5. **Enriquecimento:** consulta mocks de Shopify e CRM para complementar o contexto do pedido e do cliente.
+6. **IA generativa:** utiliza o Google Gemini para redigir uma resposta humanizada nos casos que exigem interpretação.
+7. **Revisão humana:** cria um rascunho no Gmail, pronto para conferência antes do envio.
+
+**Destaques de Engenharia:**
+
+- Uso de `Switch` para reduzir chamadas desnecessárias e separar regras de negócio.
+- Combinação de respostas determinísticas com IA apenas onde ela agrega valor.
+- Human-in-the-loop por meio de rascunhos, evitando disparos automáticos sem revisão.
+
+---
+
+## 3. Laboratório de Auditoria A/B — Try/Catch + IA
+
+**Arquivo:** `Laboratorio_Auditoria_AB_TryCatch_IA.json`
+
+Um laboratório de auditoria de páginas que recebe uma URL por webhook, tenta diferentes estratégias de captura e produz um laudo estruturado com apoio de inteligência artificial quando necessário.
+
+**Arquitetura do Fluxo:**
+
+1. **Entrada:** recebe via webhook POST a URL que será auditada.
+2. **Captura principal:** tenta acessar e renderizar a página por um serviço Browserless.
+3. **Detecção de bloqueio:** identifica sucesso, CAPTCHA ou erro técnico por meio de um `Switch`.
+4. **Try/Catch operacional:** diante de bloqueio, repete a captura por uma rota alternativa usando ScraperAPI.
+5. **Validação determinística:** um nó de código aplica regex e comparações objetivas ao conteúdo coletado.
+6. **Escalonamento para IA:** o Gemini é chamado apenas quando as regras não conseguem concluir a auditoria.
+7. **Saída e histórico:** formata o laudo, registra o resultado no Google Sheets e responde ao webhook.
+
+**Destaques de Engenharia:**
+
+- Estratégia de recuperação em camadas para páginas protegidas ou instáveis.
+- Uso seletivo de IA, reduzindo custo e latência quando regras determinísticas bastam.
+- Resposta síncrona por webhook com persistência do laudo para auditoria futura.
+
+---
+
+## 4. Roteador de Chamados ClickUp
+
+**Arquivo:** `Roteador_Chamados_ClickUp.json`
+
+Automação de triagem e distribuição de novos chamados no ClickUp. O fluxo identifica a área responsável e aplica regras de round-robin para equilibrar a carga entre os integrantes disponíveis.
+
+**Arquitetura do Fluxo:**
+
+1. **Trigger:** reage à criação de uma tarefa no ClickUp.
+2. **Enriquecimento:** consulta a tarefa e os membros da workspace pela API.
+3. **Validação:** interpreta os dados do chamado e define o destino operacional.
+4. **Roteamento:** separa os fluxos de TVR, Impresso/Web, TI e Qualidade.
+5. **Distribuição:** executa regras independentes de round-robin para cada equipe.
+6. **Atribuição:** atualiza a tarefa via API do ClickUp com o responsável selecionado.
+
+**Destaques de Engenharia:**
+
+- Balanceamento de carga com regras de distribuição por área.
+- Separação clara entre validação, roteamento e atribuição.
+- Uso combinado de trigger nativo e chamadas HTTP para ampliar o controle sobre a API.
+
+---
+
+## 5. Daily Digest CX & OP
+
+**Arquivo:** `Daily_Digest_CX_OP.json`
+
+Uma rotina de acompanhamento operacional que consolida tarefas e comentários do ClickUp, calcula indicadores de SLA e publica um resumo executivo no Slack em dois momentos do dia.
+
+**Arquitetura do Fluxo:**
+
+1. **Agendamento:** executa em dias úteis nos horários configurados para os turnos da operação.
+2. **Coleta:** busca tarefas e comentários recentes no ClickUp.
+3. **Processamento:** filtra os registros, organiza os dados por responsável e calcula indicadores de SLA.
+4. **Persistência:** grava a base consolidada no Google Sheets.
+5. **Resumo por IA:** utiliza o Gemini para gerar o digest em linguagem natural.
+6. **Fallback:** aguarda uma nova tentativa e aciona a OpenAI caso o provedor principal falhe.
+7. **Comunicação:** publica o digest no Slack ou envia um aviso operacional caso ambos os modelos estejam indisponíveis.
+
+**Destaques de Engenharia:**
+
+- Pipeline completo de coleta, transformação, análise e comunicação.
+- Fallback entre modelos com tratamento explícito de falha.
+- Continuidade operacional: os dados permanecem registrados mesmo quando a geração do texto falha.
+
+---
+
+## 6. Monitoramento de Status de Agentes (Twilio ➜ Google Chat)
+
 ![Workflow Twilio Monitor](./assets/monitor-twilio.png)
+
 **Arquivo:** `Twilio_GoogleChat_Monitor.json`
 
-Um fluxo automatizado de ETL e monitoramento em tempo real. O n8n se conecta à API da Twilio para extrair os status dos agentes de atendimento, processa os dados com regras de negócios avançadas e dispara alertas visuais no Google Chat.
+Um fluxo automatizado de ETL e monitoramento. O n8n se conecta à API da Twilio para extrair os status dos agentes, processa regras de negócio e dispara alertas visuais no Google Chat.
 
 **Arquitetura do Fluxo:**
-1. **Agendador (Cron):** Dispara a rotina em intervalos definidos (ex: a cada 30 minutos).
-2. **Extração de Dados:** Realiza um GET autenticado na API da Twilio TaskRouter (simulado via Mocks).
-3. **Processamento (Code Node):** Filtra agentes desconectados, consolida mudanças recentes de status e estrutura o payload utilizando JavaScript.
-4. **Controle de Fluxo (`If`):** Valida se houveram alterações antes de prosseguir, economizando recursos computacionais.
-5. **Ação Principal:** Dispara um Webhook para o Google Chat utilizando uma interface rica (Cards V2).
-6. **Resiliência (Fallback):** Uma segunda trava lógica verifica se a API do Google Chat retornou erro (ex: falha na renderização do Card). Em caso positivo, o fluxo regride graciosamente para enviar um alerta em texto puro.
+
+1. **Agendador:** dispara a rotina em intervalos definidos.
+2. **Extração:** consulta a API da Twilio TaskRouter.
+3. **Processamento:** filtra agentes desconectados e consolida mudanças recentes de status.
+4. **Controle de fluxo:** valida se houve alterações antes de prosseguir.
+5. **Notificação:** envia um card visual ao Google Chat.
+6. **Fallback:** se o card falhar, envia um alerta em texto simples.
 
 **Destaques de Engenharia:**
-- Tratamento de exceções nativo do n8n atrelado a nós de roteamento condicional.
-- Implementação de um padrão de "Fallback" garantindo a entrega da mensagem independente da complexidade visual suportada pelo canal de destino.
+
+- Tratamento de exceções associado a nós de roteamento condicional.
+- Fallback que preserva a entrega mesmo quando o formato visual não é aceito.
 
 ---
 
-## 3. Backend MVP (OrçaAqui)
+## 7. Backend MVP — OrçaAqui
+
 ![Workflow Backend MVP](./assets/orcaaqui.png)
+
 **Arquivo:** `Backend_OrcaAqui_MVP.json`
 
-Desenvolvido para atuar como o backend completo de uma aplicação SaaS (Single Page Application hospedada na Vercel). O n8n expõe Webhooks que o Front-End consome via fetch nativo, eliminando a necessidade de um servidor Node.js intermediário.
+Workflow desenvolvido para atuar como backend de uma aplicação SaaS. O n8n expõe webhooks consumidos diretamente pelo front-end, centralizando rotas, persistência e análise inteligente.
 
 **Arquitetura do Fluxo:**
-1. **Webhooks GET/POST:** Atuam como endpoints de uma API RESTful.
-   - `/webhook/orcaaqui-get-pedidos`: Retorna a lista de pedidos.
-   - `/webhook/orcaaqui-post-proposta`: Recebe novas propostas e salva no banco de dados.
-   - `/webhook/orcaaqui-analise-ia`: Endpoint avançado para análise inteligente.
-2. **Banco de Dados (Google Sheets):** Leitura e escrita otimizada na planilha que atua como o banco relacional do MVP.
-3. **IA Analítica (Gemini):**
-   - Recebe um `id_pedido`.
-   - Busca no banco todas as propostas relacionadas a esse ID.
-   - Envia o contexto em lote para o Google Gemini via requisição HTTP (API REST nativa).
-   - A IA atua como um "consultor financeiro", comparando as propostas, apontando o melhor custo-benefício e formatando a saída de volta para o frontend.
-4. **Tratamento de Rate Limit:** O frontend consome este fluxo já esperando possíveis respostas HTTP `429 Too Many Requests`, lidando de forma graciosa com os limites da IA.
+
+1. **Webhooks GET/POST:** funcionam como endpoints de uma API REST.
+2. **Banco de dados:** utiliza Google Sheets para leitura e escrita dos registros do MVP.
+3. **IA analítica:** compara propostas relacionadas a um pedido e retorna uma recomendação de custo-benefício.
+4. **Tratamento de limites:** prevê respostas de rate limit e permite tratamento gracioso pelo front-end.
 
 **Destaques de Engenharia:**
-- Construção de "API-less Backend": O n8n assume total responsabilidade pelas regras de negócios e rotas.
-- Otimização de prompts para que a IA processe matrizes de dados complexos (múltiplas propostas e valores) e retorne insights diretos.
+
+- Backend de MVP construído integralmente no n8n.
+- Prompts orientados à análise de múltiplas propostas e valores.
 
 ---
 
-## 4. Integração Simples de Dados (Case de Faculdade)
+## 8. Integração Simples de Dados — Case de Faculdade
+
 ![Workflow Case Faculdade](./assets/facul-case.png)
+
 **Arquivo:** `case_projeto_facul.json`
 
-Um projeto acadêmico demonstrando os fundamentos de extração e disponibilização de dados utilizando Webhooks como micro-serviços.
+Projeto acadêmico que demonstra os fundamentos de extração e disponibilização de dados usando webhooks como microsserviços.
 
 **Arquitetura do Fluxo:**
-1. **Endpoint 1 (`/livros`):** Acionado via GET, busca dados em uma tabela "Livros_Destaque" e retorna o payload limpo para o front-end consumir.
-2. **Endpoint 2 (`/avisos`):** Acionado via GET, busca dados em uma tabela "Avisos" e retorna a lista de recados.
+
+1. **Endpoint `/livros`:** busca a tabela de livros em destaque e retorna os dados para o front-end.
+2. **Endpoint `/avisos`:** busca uma tabela de avisos e devolve a lista de recados.
 
 **Destaques de Engenharia:**
-- Demonstra entendimento da estrutura `Request -> Process -> Response`.
-- Uso eficiente de Webhooks para servir conteúdo dinâmico (Headless CMS com Google Sheets).
+
+- Aplicação direta do ciclo `Request → Process → Response`.
+- Uso de webhooks e Google Sheets como um CMS headless simples.
+
+---
+
+## Como importar
+
+1. Baixe o arquivo JSON desejado.
+2. No n8n, abra **Workflows** e selecione **Import from File**.
+3. Configure as credenciais e substitua os placeholders `CONFIGURE_*`, `YOUR_*` e `REPLACE_WITH_*`.
+4. Revise triggers, horários, IDs e permissões.
+5. Teste o fluxo manualmente antes de ativá-lo.

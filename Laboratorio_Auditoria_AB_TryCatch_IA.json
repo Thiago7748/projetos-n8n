@@ -1,0 +1,478 @@
+{
+  "name": "Laboratorio Auditoria A/B - TryCatch + IA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "validador-clipping",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "05fcb744-e390-4975-bad8-74f479e06c23",
+      "name": "Webhook (Postman)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://browserless:3000/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": {
+            "name": "url",
+            "value": "={{ $('Webhook (Postman)').first().json.body.url_da_noticia }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "92ec5610-6b6b-424d-8099-173077da841a",
+      "name": "Acessar URL (Normal)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        464,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": {
+                  "leftValue": "={{ $json.error ? 'STATUS_ERRO' : ($json.data && ($json.data.includes('id=\"challenge-stage\"') || $json.data.includes('Attention Required!')) ? 'STATUS_CAPTCHA' : 'STATUS_OK') }}",
+                  "rightValue": "STATUS_OK",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                },
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "STATUS_OK"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": {
+                  "leftValue": "={{ $json.error ? 'STATUS_ERRO' : ($json.data && ($json.data.includes('id=\"challenge-stage\"') || $json.data.includes('Attention Required!')) ? 'STATUS_CAPTCHA' : 'STATUS_OK') }}",
+                  "rightValue": "STATUS_CAPTCHA",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                },
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "STATUS_CAPTCHA"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": {
+                  "leftValue": "={{ $json.error ? 'STATUS_ERRO' : ($json.data && ($json.data.includes('id=\"challenge-stage\"') || $json.data.includes('Attention Required!')) ? 'STATUS_CAPTCHA' : 'STATUS_OK') }}",
+                  "rightValue": "STATUS_ERRO",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                },
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "STATUS_ERRO"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        1152
+      ],
+      "id": "539ea022-1cea-41bb-988d-8083c18a0441",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.scraperapi.com/?api_key=REPLACE_WITH_SCRAPERAPI_KEY&url={{ encodeURIComponent($('Webhook (Postman)').first().json.body.url_da_noticia) }}&render=true",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "6d7830aa-2d5c-4155-b871-ca0797890c17",
+      "name": "Acessar URL (Força Bruta)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        880,
+        1296
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook (Postman)').first().json.body || {};\n\nfunction garantirArray(input) {\n    if (!input) return [];\n    if (Array.isArray(input)) return input;\n    return [String(input)];\n}\n\nconst palavrasAntes = garantirArray(body.palavras_chave);\nconst palavrasNovas = garantirArray(body.novas_palavras);\nconst cliente = body.cliente || 'Sem Nome';\nconst url = body.url_da_noticia || 'Sem URL';\n\nconst htmlBruto = $input.first().json.data || '';\n\nconst textoLimpo = htmlBruto\n    .replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '')\n    .replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n\nconst normalize = (str) => str.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\nconst textoSiteNorm = normalize(textoLimpo);\n\nfunction validarLista(lista) {\n    let encontradas = [];\n    let faltantes = [];\n    for (let palavra of lista) {\n        if (!palavra || typeof palavra !== 'string') continue;\n        const palavraLimpa = normalize(palavra);\n        const regex = new RegExp(`\\\\b${palavraLimpa}\\\\b`, 'i');\n        if (regex.test(textoSiteNorm)) {\n            encontradas.push(palavra);\n        } else {\n            faltantes.push(palavra);\n        }\n    }\n    let statusMsg = '';\n    if (lista.length === 0) statusMsg = 'Vazio';\n    else if (faltantes.length === 0) statusMsg = 'Match Completo';\n    else if (encontradas.length > 0) statusMsg = 'Match Parcial';\n    else statusMsg = 'Sem Match';\n\n    return { encontradas, faltantes, statusMsg, total: lista.length };\n}\n\n// 1. Diagnóstico da Lista Antiga\nconst resAntes = validarLista(palavrasAntes);\n\n// 2. Diagnóstico da Lista COMPLETA Atualizada (Antes + Novas sem duplicatas)\nconst listaCompletaDepois = Array.from(new Set([...palavrasAntes, ...palavrasNovas]));\nconst resDepois = validarLista(listaCompletaDepois);\n\nlet faltantesAlvo = resAntes.faltantes;\nlet encontradasAlvo = resAntes.encontradas;\nlet totalBuscadas = resAntes.total;\nlet tipoTeste = \"🔍 1º Diagnóstico\";\nlet precisaIA = false;\nlet metricas = \"\";\nlet laudoSemIA = \"\";\n\nif (palavrasNovas.length > 0 && resDepois.statusMsg !== 'Vazio') {\n    tipoTeste = \"⚡ 2º Teste (Ajuste A/B)\";\n    faltantesAlvo = resDepois.faltantes;\n    encontradasAlvo = resDepois.encontradas;\n    totalBuscadas = resDepois.total;\n\n    let pctAntes = resAntes.total > 0 ? (resAntes.encontradas.length / resAntes.total) * 100 : 0;\n    let pctDepois = resDepois.total > 0 ? (resDepois.encontradas.length / resDepois.total) * 100 : 0;\n    let diff = Math.round(pctDepois - pctAntes);\n\n    if (diff > 0) metricas = `🟢 Ajuste Validado (+${diff}%)`;\n    else if (diff < 0) metricas = `🔴 Ajuste Piorou (${diff}%)`;\n    else metricas = `⚪ Ajuste Neutro`;\n\n    // Pula a IA se o novo termo foi suficiente para encontrar a matéria\n    precisaIA = (resDepois.encontradas.length === 0);\n    laudoSemIA = `Análise semântica desnecessária: Ajuste validado (${resDepois.encontradas.length}/${resDepois.total} palavras do conjunto encontradas).`;\n} else {\n    precisaIA = (resAntes.encontradas.length === 0);\n    \n    if (resAntes.statusMsg === 'Sem Match') {\n        metricas = \"🔴 Necessita de Ajuste de Palavras\";\n    } else {\n        metricas = \"⚠️ Palavras OK (Verificar Sistema)\";\n    }\n    laudoSemIA = `Análise semântica desnecessária: Palavras da busca encontradas no texto (${resAntes.encontradas.length}/${resAntes.total}).`;\n}\n\nconst dataAtual = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\nreturn {\n    json: {\n        data: dataAtual,\n        tipo_teste: tipoTeste,\n        cliente: cliente,\n        url: url,\n        status_antes: `${resAntes.statusMsg} (${resAntes.encontradas.length}/${resAntes.total})`,\n        status_depois: palavrasNovas.length > 0 ? `${resDepois.statusMsg} (${resDepois.encontradas.length}/${resDepois.total})` : \"Não testado\",\n        metricas: metricas,\n        total_buscadas: totalBuscadas,\n        total_encontradas: encontradasAlvo.length,\n        palavras_encontradas: encontradasAlvo,\n        precisa_ia: precisaIA,\n        laudo_sem_ia: laudoSemIA,\n        palavras_faltantes: faltantesAlvo,\n        texto_bruto_site: textoLimpo.substring(0, 20000)\n    }\n};"
+      },
+      "id": "c3b1115f-5f07-4dab-99a5-b55e2921246d",
+      "name": "Validador (Regex e Comparador)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": {
+            "value1": "={{ $json.precisa_ia }}",
+            "value2": true
+          }
+        }
+      },
+      "id": "62c16615-bc20-4524-9a6a-9dd964790267",
+      "name": "Precisa de IA?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Você é um auditor de clipping.\nAbaixo está o código limpo de uma página web.\nIgnore menus, rodapés e anúncios. Concentre-se apenas na matéria jornalística principal.\n\nTEXTO DA PÁGINA:\n{{ $json.texto_bruto_site }}\n\nTERMOS QUE O CÓDIGO NÃO ACHOU:\n{{ $json.palavras_faltantes.join(', ') }}\n\nAnalise o texto da matéria. Verifique se o cliente ou o assunto dos \"termos faltantes\" foi citado de forma implícita, por sinônimos, apelidos ou cargos.\nEntregue apenas o laudo final em 1 ou 2 parágrafos. Seja direto e técnico.",
+        "batching": {}
+      },
+      "id": "80f05536-dab0-4b58-9012-9e67780a8646",
+      "name": "Auditor IA",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1584,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ec8e2f7e-72d8-4523-98dc-30eb9c34b0d9",
+      "name": "Gemini 1.5 Flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": {
+            "name": "text",
+            "value": "Análise semântica desnecessária: Validação 100% atingida por correspondência exata de texto."
+          }
+        },
+        "options": {}
+      },
+      "id": "f17a0b0f-0d69-4008-8d54-da840b654397",
+      "name": "Laudo Automático",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const validador = $('Validador (Regex e Comparador)').first().json;\nconst respostaIA = $input.first().json.text || validador.laudo_sem_ia || 'Análise semântica desnecessária.';\n\nreturn {\n    json: {\n        \"Data\": validador.data,\n        \"Tipo de Teste\": validador.tipo_teste,\n        \"Cliente\": validador.cliente,\n        \"URL\": validador.url,\n        \"Status Antes\": validador.status_antes,\n        \"Status Depois\": validador.status_depois,\n        \"Total Buscadas\": validador.total_buscadas,\n        \"Total Encontradas\": validador.total_encontradas,\n        \"Palavras no Texto\": validador.palavras_encontradas,\n        \"Resultado do Ajuste\": validador.metricas,\n        \"Laudo Técnico\": respostaIA.trim()\n    }\n};"
+      },
+      "id": "07cce66c-f8e1-4048-a882-ede6b77a6d5b",
+      "name": "Formatador Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "CONFIGURE_GOOGLE_SHEET_ID",
+          "__regex": "https:\\/\\/(?:drive|docs)\\.google\\.com(?:\\/.*|)\\/d\\/([0-9a-zA-Z\\-_]+)(?:\\/.*|)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Página1",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ $json[\"Data\"] }}",
+            "Cliente": "={{ $json[\"Cliente\"] }}",
+            "URL": "={{ $json[\"URL\"] }}",
+            "Status Antes": "={{ $json[\"Status Antes\"] }}",
+            "Status Depois": "={{ $json[\"Status Depois\"] }}",
+            "Resultado do Ajuste": "={{ $json[\"Resultado do Ajuste\"] }}",
+            "Laudo Técnico": "={{ $json[\"Laudo Técnico\"] }}",
+            "Tipo de Teste": "={{ $json[\"Tipo de Teste\"] }}"
+          },
+          "matchingColumns": null,
+          "schema": [
+            {
+              "id": "Data",
+              "displayName": "Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tipo de Teste",
+              "displayName": "Tipo de Teste",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status Antes",
+              "displayName": "Status Antes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status Depois",
+              "displayName": "Status Depois",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Resultado do Ajuste",
+              "displayName": "Resultado do Ajuste",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Laudo Técnico",
+              "displayName": "Laudo Técnico",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "c5340841-91ec-4a5e-8037-158dacac1bde",
+      "name": "Salvar no Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2160,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "7e9be8e6-5ab4-45ee-a761-83f8fcc0a9f3",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2384,
+        1152
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook (Postman)": {
+      "main": {
+        "node": "Acessar URL (Normal)",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Acessar URL (Normal)": {
+      "main": [
+        {
+          "node": "Switch",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Switch",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Switch": {
+      "main": [
+        {
+          "node": "Validador (Regex e Comparador)",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Acessar URL (Força Bruta)",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Acessar URL (Força Bruta)": {
+      "main": {
+        "node": "Validador (Regex e Comparador)",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Validador (Regex e Comparador)": {
+      "main": {
+        "node": "Precisa de IA?",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Precisa de IA?": {
+      "main": [
+        {
+          "node": "Auditor IA",
+          "type": "main",
+          "index": 0
+        },
+        {
+          "node": "Laudo Automático",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    },
+    "Gemini 1.5 Flash": {
+      "ai_languageModel": {
+        "node": "Auditor IA",
+        "type": "ai_languageModel",
+        "index": 0
+      }
+    },
+    "Auditor IA": {
+      "main": {
+        "node": "Formatador Final",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Laudo Automático": {
+      "main": {
+        "node": "Formatador Final",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Formatador Final": {
+      "main": {
+        "node": "Salvar no Sheets",
+        "type": "main",
+        "index": 0
+      }
+    },
+    "Salvar no Sheets": {
+      "main": {
+        "node": "Respond to Webhook",
+        "type": "main",
+        "index": 0
+      }
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "nodeGroups": null
+}
